@@ -5,7 +5,7 @@ dir=/home/dinghongquan/wide_deep
 
 for host in ${hosts[@]}
 do
-		rsync -rvz -e'ssh -p 1046' --exclude 'model' ./* $host:$dir
+		rsync -rvz -e'ssh -p 1046' --exclude 'model' --exclude 'log' --exclude 'conf' ./* $host:$dir
 done
 #rsync -rvz -e'ssh -p 1046' --exclude 'model' ./* dinghongquan@10.172.110.162:/home/dinghongquan/wide_deep
 #rsync -rvz -e'ssh -p 1046' --exclude 'model' ./* dinghongquan@10.120.180.212:/home/dinghongquan/wide_deep

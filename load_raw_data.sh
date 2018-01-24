@@ -1,13 +1,16 @@
 #!/bin/bash
 set -e
 input_hdfs_dir=/user/algo/algo_fea/v1/feature_joiner
-output_local_dir=/home/appops/data/train
+output_local_dir=/home/appops/data/test
 
 if [ $# -eq 0 ];then
     dt=`date -d "yesterday" +%Y%m%d`
 elif [ $# -eq 1 ];then
     dt=$1
 fi
+
+echo "Input hdfs path: $input_hdfs_dir/$dt."
+echo "Output local path: $output_local_dir/$dt."
 
 if [ ! -d $output_local_dir/$dt ]; then
 		sudo -iu appops mkdir -p $output_local_dir/$dt && echo "Make local path $output_local_dir/$dt"

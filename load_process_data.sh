@@ -17,7 +17,7 @@ elif [ $# -eq 2 ]; then
     end_dt=$2
 fi
 
-from_hdfs_dir=/user/algo/user/dinghongquan/raw_data
+from_hdfs_dir=/user/algo/user/dinghongquan/raw_data_downsample_0.01
 to_local_dir=/home/appops/data/train
 
 if [ ! -d "$to_local_dir" ]; then  
@@ -31,6 +31,7 @@ function load_data() {
 		echo "Start loading data from ${input_path}."
         #sudo -iu appops hadoop fs -text ${input_path}/part* > ${output_path}
         sudo -iu appops hadoop fs -getmerge ${input_path}/part* ${output_path}
+        sudo -iu appops chmod 666 ${output_path}
 		echo "Finish loading data to ${output_path}."  
 }
 if [ $dt -ne $end_dt ]; then
@@ -44,7 +45,6 @@ else
 		load_data $dt
 fi
 
-sudo -iu appops chmod 666 ${to_local_dir}/*
 echo "Done! see data in ${to_local_dir}." 
 cd ${to_local_dir}
 
