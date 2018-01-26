@@ -3,48 +3,38 @@
 # @Author: lapis-hong
 # @Date  : 2018/1/24
 from collections import OrderedDict
+import yaml
 
 
 class Config(object):
 
-    @staticmethod
-    def _read_train_conf():
-        """Read train configuration
-        Return: Dict {parameter_name: parameter_value,...}
-        """
-        config = {}
-        for line in open('./conf/train.conf'):
-            line = line.strip().strip('\n')
-            if line.startswith('#') or not line:
-                continue
-            key = line.split('=')[0].strip().lower()
-            value = line.split('=')[1].strip().lower()
-            config[key] = value or None
-        return config
-
     @classmethod
     def __init__(cls):
-        config = cls._read_train_conf()
+        with open('./conf/train.yaml') as f:
+            config = yaml.load(f)
         cls.config = config
-        # train parameter
-        cls.model_dir = config["model_dir"]
-        cls.model_type = config["model_type"]
-        cls.train_data = config["train_data"]
-        cls.test_data = config["test_data"]
-        cls.train_epochs = config["train_epochs"]
-        cls.batch_size = int(config["batch_size"])
-        cls.keep_train = bool(config["keep_train"])
-        cls.is_distribution = bool(config["is_distribution"])
-        cls.shuffle_buffer_size = int(config["shuffle_buffer_size"])
-        # model hyperparameter
-        cls.hidden_units = map(int, config["hidden_units"].split(','))
-        cls.wide_learning_rate = float(config["wide_learning_rate"])
-        cls.deep_learning_rate = float(config["deep_learning_rate"])
-        cls.wide_l1 = float(config["wide_l1"]) if config["wide_l1"] is not None else None
-        cls.wide_l2 = float(config["wide_l2"]) if config["wide_l2"] is not None else None
-        cls.deep_l1 = float(config["deep_l1"]) if config["deep_l1"] is not None else None
-        cls.deep_l2 = float(config["deep_l2"]) if config["deep_l1"] is not None else None
-        cls.dropout = float(config["dropout"]) if config["dropout"] is not None else None
+        cls.train = config["train"]
+        cls.distribution = config["distribution"]
+        cls.model = config["model"]
+        cls.runconfig = config["runconfig"]
+
+        # cls.model_type = config["model_type"]
+        # cls.train_data = config["train_data"]
+        # cls.test_data = config["test_data"]
+        # cls.train_epochs = config["train_epochs"]
+        # cls.batch_size = config["batch_size"]
+        # cls.keep_train = bool(config["keep_train"])
+        # cls.is_distribution = bool(config["is_distribution"])
+        # cls.shuffle_buffer_size = config["shuffle_buffer_size"]
+
+        # cls.hidden_units = config["hidden_units"]
+        # cls.wide_learning_rate = config["wide_learning_rate"]
+        # cls.deep_learning_rate = config["deep_learning_rate"]
+        # cls.wide_l1 = config["wide_l1"]
+        # cls.wide_l2 = config["wide_l2"]
+        # cls.deep_l1 = config["deep_l1"]
+        # cls.deep_l2 = config["deep_l2"]
+        # cls.dropout = config["dropout"]
 
     @staticmethod
     def _read_data_schema():
@@ -68,7 +58,7 @@ class Config(object):
             {'request_id', {'feature_type': 'category', 'feature_transform': 'hash_bucket', 'feature_parameter': [500000]}, ...}"""
         feature_schema = cls._read_data_schema()[1:]
         feature_conf_dic = OrderedDict()
-        for nu, line in enumerate(open('./conf/feature_default.conf')):
+        for nu, line in enumerate(open('./conf/feature.conf')):
             line = line.strip().strip('\n')
             if line.startswith('#') or not line:
                 continue
@@ -135,11 +125,17 @@ class Config(object):
 
 
 def _test():
-    config = Config()
-    print(config.hidden_units)
-    print(config.dropout)
     """test for Config methods"""
-    print('Input data schema:')
+    print('\nTrain config:')
+    config = Config()
+    print(config.config)
+    print(config.train)
+    print(config.runconfig)
+    print(config.model)
+    print(config.model["hidden_units"])
+    print(config.train["model_dir"])
+
+    print('\nInput data schema:')
     data_schema = Config._read_data_schema()
     print(data_schema)
 
@@ -153,11 +149,6 @@ def _test():
     for f in cross_feature_list:
         print(f)
 
-    train_conf_dic = Config._read_train_conf()
-    print('\nTrain conf:')
-    for k, v in train_conf_dic.items():
-        print(k, v)
-
     category_feature = Config.get_feature_name('category')
     print('\nCategory feature:')
     print(category_feature)
@@ -165,3 +156,5 @@ def _test():
 
 if __name__ == '__main__':
     _test()
+
+

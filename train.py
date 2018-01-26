@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 # @Author: lapis-hong
 # @Date  : 2018/1/15
+"""Training Wide and Deep Model."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import argparse
 import shutil
@@ -19,31 +21,32 @@ from read_conf import Config
 from model import build_estimator
 from input_fn import input_fn
 
-
-parser = argparse.ArgumentParser()
-CONFIG = Config()
+CONFIG = Config().train
+parser = argparse.ArgumentParser(description='Train Wide and Deep Model.')
 
 parser.add_argument(
-    '--model_dir', type=str, default=CONFIG.model_dir,
+    '--model_dir', type=str, default=CONFIG["model_dir"],
     help='Base directory for the model.')
 parser.add_argument(
-    '--model_type', type=str, default=CONFIG.model_type,
+    '--model_type', type=str, default=CONFIG["model_type"],
     help="Valid model types: {'wide', 'deep', 'wide_deep'}.")
 parser.add_argument(
-    '--train_epochs', type=int, default=CONFIG.train_epochs, help='Number of training epochs.')
+    '--train_epochs', type=int, default=CONFIG["train_epochs"],
+    help='Number of training epochs.')
 parser.add_argument(
     '--epochs_per_eval', type=int, default=1,
     help='The number of training epochs to run between evaluations.')
 parser.add_argument(
-    '--batch_size', type=int, default=CONFIG.batch_size, help='Number of examples per batch.')
+    '--batch_size', type=int, default=CONFIG["batch_size"],
+    help='Number of examples per batch.')
 parser.add_argument(
-    '--train_data', type=str, default=CONFIG.train_data,
+    '--train_data', type=str, default=CONFIG["train_data"],
     help='Path to the training data.')
 parser.add_argument(
-    '--test_data', type=str, default=CONFIG.test_data,
+    '--test_data', type=str, default=CONFIG["test_data"],
     help='Path to the test data.')
 parser.add_argument(
-    '--keep_train', type=int, default=CONFIG.keep_train,
+    '--keep_train', type=int, default=CONFIG["keep_train"],
     help='Whether to keep training on previous trained model.')
 
 
@@ -66,7 +69,13 @@ def elapse_time(start_time):
 
 
 def main(unused_argv):
+    CONFIG = Config()
     print("Using TensorFlow version %s" % tf.__version__)
+    assert "1.4" <= tf.__version__, "TensorFlow r1.4 or later is needed"
+    print("Using Train config: {}".format(CONFIG.train))
+    if CONFIG.distribution["is_distribution"]:
+        print("Using distribution tensoflow. Job_name:{} Task_index:{}"
+              .format(CONFIG.distribution["job_name"], CONFIG.distribution["task_index"]))
     # model info
     tf.logging.info('Model type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)

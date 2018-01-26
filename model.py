@@ -6,12 +6,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import os
+import json
 import numpy as np
+import tensorflow as tf
 
 from read_conf import Config
 
-CONFIG = Config()
 # wide columns
 categorical_column_with_identity = tf.feature_column.categorical_column_with_identity
 categorical_column_with_hash_bucket = tf.feature_column.categorical_column_with_hash_bucket
@@ -123,23 +124,53 @@ def build_model_columns():
     return wide_columns, deep_columns
 
 
+def build_distribution():
+    CONFIG = Config().distribution
+    if CONFIG["is_distribution"]:
+        cluster_spec = CONFIG["cluster"]
+        job_name = CONFIG["job_name"]
+        task_index = CONFIG["task_index"]
+        os.environ['TF_CONFIG'] = json.dumps(
+            {'cluster': cluster_spec,
+             'task': {'type': job_name, 'index': task_index}})
+        run_config = tf.estimator.RunConfig()
+        if job_name in ["ps", "chief", "worker"]:
+            assert run_config.master == 'grpc://' + cluster_spec[job_name][task_index]  # grpc://10.120.180.212
+            assert run_config.task_type == job_name
+            assert run_config.task_id == task_index
+            assert run_config.num_ps_replicas == len(cluster_spec["ps"])
+            assert run_config.num_worker_replicas == len(cluster_spec["worker"]) + len(cluster_spec["chief"])
+            assert run_config.is_chief == (job_name == "chief")
+        elif job_name == "evaluator":
+            assert run_config.master == ''
+            assert run_config.evaluator_master == ''
+            assert run_config.task_id == 0
+            assert run_config.num_ps_replicas == 0
+            assert run_config.num_worker_replicas == 0
+            assert run_config.cluster_spec == {}
+            assert run_config.task_type == 'evaluator'
+            assert not run_config.is_chief
+
+
 def build_estimator(model_dir, model_type):
     """Build an estimator appropriate for the given model type."""
     wide_columns, deep_columns = build_model_columns()
+    build_distribution()
     # Create a tf.estimator.RunConfig to ensure the model is run on CPU, which
     # trains faster than GPU for this model.
-    run_config = tf.estimator.RunConfig().replace(
+    run_config = tf.estimator.RunConfig(**Config().runconfig).replace(
         session_config=tf.ConfigProto(device_count={'GPU': 0}))
 
+    CONFIG = Config().model
     if model_type == 'wide':
         return tf.estimator.LinearClassifier(
             model_dir=model_dir,
             feature_columns=wide_columns,
             weight_column=None,
             optimizer=tf.train.FtrlOptimizer(
-                learning_rate=CONFIG.wide_learning_rate,
-                l1_regularization_strength=CONFIG.wide_l1,
-                l2_regularization_strength=CONFIG.wide_l2),  # 'Ftrl',
+                learning_rate=CONFIG["wide_learning_rate"],
+                l1_regularization_strength=CONFIG["wide_l1"],
+                l2_regularization_strength=CONFIG["wide_l2"]),  # 'Ftrl',
             partitioner=None,
             config=run_config)
     elif model_type == 'deep':
@@ -148,9 +179,9 @@ def build_estimator(model_dir, model_type):
             feature_columns=deep_columns,
             hidden_units=CONFIG.hidden_units,
             optimizer=tf.train.ProximalAdagradOptimizer(
-                learning_rate=CONFIG.deep_learning_rate,
-                l1_regularization_strength=CONFIG.deep_l1,
-                l2_regularization_strength=CONFIG.deep_l2),  # {'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'}
+                learning_rate=CONFIG["deep_learning_rate"],
+                l1_regularization_strength=CONFIG["deep_l1"],
+                l2_regularization_strength=CONFIG["deep_l2"]),  # {'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'}
             activation_fn=tf.nn.relu,
             dropout=CONFIG.dropout,
             weight_column=None,
@@ -161,17 +192,17 @@ def build_estimator(model_dir, model_type):
             model_dir=model_dir,
             linear_feature_columns=wide_columns,
             linear_optimizer=tf.train.FtrlOptimizer(
-                learning_rate=CONFIG.wide_learning_rate,
-                l1_regularization_strength=CONFIG.wide_l1,
-                l2_regularization_strength=CONFIG.wide_l2),
+                learning_rate=CONFIG["wide_learning_rate"],
+                l1_regularization_strength=CONFIG["wide_l1"],
+                l2_regularization_strength=CONFIG["wide_l2"]),
             dnn_feature_columns=deep_columns,
             dnn_optimizer=tf.train.ProximalAdagradOptimizer(
-                learning_rate=CONFIG.deep_learning_rate,
-                l1_regularization_strength=CONFIG.deep_l1,
-                l2_regularization_strength=CONFIG.deep_l2),
-            dnn_hidden_units=CONFIG.hidden_units,
+                learning_rate=CONFIG["deep_learning_rate"],
+                l1_regularization_strength=CONFIG["deep_l1"],
+                l2_regularization_strength=CONFIG["deep_l2"]),
+            dnn_hidden_units=CONFIG["hidden_units"],
             dnn_activation_fn=tf.nn.relu,
-            dnn_dropout=CONFIG.dropout,
+            dnn_dropout=CONFIG["dropout"],
             n_classes=2,
             weight_column=None,
             label_vocabulary=None,
@@ -181,8 +212,9 @@ def build_estimator(model_dir, model_type):
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.DEBUG)
-    build_model_columns()
-    model = build_estimator('./model', 'wide')
+    #build_model_columns()
+    build_distribution()
+    #model = build_estimator('./model', 'wide')
     # print(model.config)  # <tensorflow.python.estimator.run_config.RunConfig object at 0x118de4e10>
     # print(model.model_dir)  # ./model
     # print(model.model_fn)  # <function public_model_fn at 0x118de7b18>

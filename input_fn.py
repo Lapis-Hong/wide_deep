@@ -8,8 +8,6 @@ import tensorflow as tf
 from read_conf import Config
 
 
-CONFIG = Config()
-
 def _column_to_csv_defaults():
     """parse columns to record_defaults param in tf.decode_csv func
     Return: _CSV_COLUMN_DEFAULTS Ordereddict {'feature name': [''],...}
@@ -59,7 +57,7 @@ def _column_to_dtype():
 def _parse_csv(value):  # value: Tensor("arg0:0", shape=(), dtype=string)
     _CSV_COLUMN_DEFAULTS = _column_to_csv_defaults()
     feature_unused = set(Config.get_feature_name('all'))-set(Config.get_feature_name('used'))
-    columns = tf.decode_csv(value, record_defaults=_CSV_COLUMN_DEFAULTS.values(), field_delim='\t', use_quote_delim=True, na_value='-')
+    columns = tf.decode_csv(value, record_defaults=_CSV_COLUMN_DEFAULTS.values(), field_delim='\t', use_quote_delim=False, na_value='-')
     # na_value fill with record_defaults
     # `tf.decode_csv` return Tensor list: <tf.Tensor 'DecodeCSV:60' shape=() dtype=string>  rank 0 Tensor
     # columns = (tf.expand_dims(col, 0) for col in columns)  # fix rank 0 error for dataset.padded_patch()
@@ -135,7 +133,7 @@ def input_fn(data_file, num_epochs, batch_size, shuffle=True, multivalue=False):
     # Extract lines from input files using the Dataset API.
     dataset = tf.data.TextLineDataset(data_file)
     if shuffle:
-        dataset = dataset.shuffle(buffer_size=CONFIG.shuffle_buffer_size, seed=123)  # set of Tensor object
+        dataset = dataset.shuffle(buffer_size=Config().train["shuffle_buffer_size"], seed=123)  # set of Tensor object
     tf.logging.info('Parsing input files: {}'.format(data_file))
     # Use `Dataset.map()` to build a pair of a feature dictionary
     # and a label tensor for each example.
