@@ -177,13 +177,13 @@ def build_estimator(model_dir, model_type):
         return tf.estimator.DNNClassifier(
             model_dir=model_dir,
             feature_columns=deep_columns,
-            hidden_units=CONFIG.hidden_units,
+            hidden_units=CONFIG["hidden_units"],
             optimizer=tf.train.ProximalAdagradOptimizer(
                 learning_rate=CONFIG["deep_learning_rate"],
                 l1_regularization_strength=CONFIG["deep_l1"],
                 l2_regularization_strength=CONFIG["deep_l2"]),  # {'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'}
             activation_fn=tf.nn.relu,
-            dropout=CONFIG.dropout,
+            dropout=CONFIG["dropout"],
             weight_column=None,
             input_layer_partitioner=None,
             config=run_config)

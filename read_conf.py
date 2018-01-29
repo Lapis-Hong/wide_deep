@@ -14,6 +14,7 @@ class Config(object):
             config = yaml.load(f)
         cls.config = config
         cls.train = config["train"]
+        cls.test = config["test"]
         cls.distribution = config["distribution"]
         cls.model = config["model"]
         cls.runconfig = config["runconfig"]
@@ -114,7 +115,6 @@ class Config(object):
         if feature_type == 'all':
             return cls._read_data_schema()[1:]
         elif feature_type == 'used':
-            print(feature_conf_dic.keys())
             return feature_conf_dic.keys()
         elif feature_type == 'category':
             return [feature for feature, conf in feature_conf_dic.items() if conf['feature_type'] == 'category']
@@ -156,5 +156,6 @@ def _test():
 
 if __name__ == '__main__':
     _test()
+    Config.get_feature_name('used')
 
 

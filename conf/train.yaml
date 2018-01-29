@@ -8,12 +8,22 @@
 train:
   model_dir: model
   model_type: wide_deep
-  train_data: data/train # /home/appops/data/train
-  test_data: data/test #/home/appops/data/test
+  train_data: /home/appops/data/train
+  test_data: /home/appops/data/eval
   train_epochs: 5
   batch_size: 256
   keep_train: 0
   shuffle_buffer_size: 2000000
+
+# Test Parameters
+test:
+  model_dir: model
+  model_type: wide_deep
+  data_dir: /home/appops/data/test/20171213
+  batch_size: 256
+  # set empty to be defaults None
+  steps:
+  check_point_path:
 
 # Distribution Spec
 # job_name: one of `ps`, `chief`, `worker`.
@@ -21,9 +31,9 @@ train:
 distribution:
   is_distribution: 1
   cluster:
-    ps: ['10.172.110.162']
-    chief: ['10.120.180.212']
-    worker: ['10.120.180.213', '10.120.180.214', '10.120.180.215']
+    ps: ['10.172.110.162:3333']
+    chief: ['10.120.180.212:3333']
+    worker: ['10.120.180.213:3333', '10.120.180.214:3333', '10.120.180.215:3333']
   job_name: chief
   task_index: 0
 

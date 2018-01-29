@@ -12,7 +12,7 @@ The code is based on the TensorFlow wide and deep tutorial.
 1. provide flexible feature configuration and train configuration.
 2. scalable to arbitrarily train data size in production environment.
 3. support multi value feature input (multihot).
-4. support train in distribution  
+4. support distributed tensorflow  
 4. provide some scripts to load data from hdfs.
 
 ## Running the code

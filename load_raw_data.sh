@@ -1,4 +1,10 @@
 #!/bin/bash
+# The script load raw data from hdfs path to appops path.
+# Usage:
+#		1. bash load_raw_data.sh  # default to load yesterday data
+#       2. bash load_raw_data.sh  20180110  # one param $1 to load certain date data
+
+
 set -e
 input_hdfs_dir=/user/algo/algo_fea/v1/feature_joiner
 output_local_dir=/home/appops/data/test

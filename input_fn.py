@@ -159,17 +159,34 @@ def input_fn(data_file, num_epochs, batch_size, shuffle=True, multivalue=False):
 def _parse_func_test(batch_size=5, multivalue=False):
     print('batch size: {}; multivalue: {}'.format(batch_size, multivalue))
     sess = tf.InteractiveSession()
-    features, labels = input_fn('./data/train', 1, batch_size=batch_size, multivalue=multivalue)
+    features, labels = input_fn('./data/train/train1', 1, batch_size=batch_size, multivalue=multivalue)
     print(features)
     print(labels)
     for f, v in features.items()[:5]:
         print('{}: {}'.format(f, sess.run(v)))
     print('labels: {}'.format(sess.run(labels)))
+    # graph = tf.get_default_graph()
+    # operations = graph.get_operations()
+    # sess = tf.InteractiveSession()
+    # print(operations)
+    # print(sess.run(operations))
 
 
 def _input_tensor_test(batch_size=5, multivalue=False):
     sess = tf.InteractiveSession()
-    features, labels = input_fn('./data/train', 1, batch_size=batch_size, multivalue=multivalue)
+    # dataset = tf.data.TextLineDataset('./data/train/train1')
+    # if multivalue:
+    #     dataset = dataset.map(_parse_csv_multivalue, num_parallel_calls=24)
+    #     dataset = dataset.repeat(1)
+    #     padding_dic = {k: [None] for k in Config.get_feature_name('used')}
+    #     dataset.padded_batch(batch_size, padded_shapes=(padding_dic, [1]))
+    # else:
+    #     dataset = dataset.map(_parse_csv, num_parallel_calls=24)
+    #     dataset = dataset.repeat(1)
+    #     dataset = dataset.batch(batch_size)
+    # iterator = dataset.make_one_shot_iterator()
+    # features, labels = iterator.get_next()
+    features, labels = input_fn('./data/train/train1', 1, batch_size=5, multivalue=multivalue)
     print(features['ucomp'].eval())
     print(features['city_id'].eval())
     # categorical_column* can handle multivalue feature as a multihot
@@ -196,10 +213,12 @@ def _input_tensor_test(batch_size=5, multivalue=False):
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.INFO)
-    _parse_func_test(multivalue=False)
-    _parse_func_test(multivalue=True)
-    _parse_func_test(1, multivalue=True)
+    # _parse_func_test(1, multivalue=False)
+    # _parse_func_test(multivalue=False)
+    # TODO: padded_patch return no batch ???
+    # _parse_func_test(1, multivalue=True)
+    # _parse_func_test(multivalue=True)
 
-    # _input_tensor_test(multivalue=False)
-    # _input_tensor_test(multivalue=True)
+    _input_tensor_test(multivalue=False)
+    _input_tensor_test(multivalue=True)
 
