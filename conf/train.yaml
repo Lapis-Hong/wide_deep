@@ -8,8 +8,8 @@
 train:
   model_dir: model
   model_type: wide_deep
-  train_data: /home/appops/data/train
-  test_data: /home/appops/data/eval
+  train_data: ./data/train
+  test_data: ./data/eval
   train_epochs: 5
   batch_size: 256
   keep_train: 0
@@ -29,12 +29,12 @@ test:
 # job_name: one of `ps`, `chief`, `worker`.
 # task_index: the host index, start from 0.
 distribution:
-  is_distribution: 1
+  is_distribution: 0
   cluster:
     ps: ['10.172.110.162:3333']
     chief: ['10.120.180.212:3333']
-    worker: ['10.120.180.213:3333', '10.120.180.214:3333', '10.120.180.215:3333']
-  job_name: chief
+    worker: ['10.120.180.213:3333']  # ['10.120.180.213:3333', '10.120.180.214:3333', '10.120.180.215:3333']
+  job_name: ps
   task_index: 0
 
 # Model Parameters & Regularization Parameters

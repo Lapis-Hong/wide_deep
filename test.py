@@ -79,19 +79,10 @@ def main(unused_argv):
        'data file not found. Please make sure you have either default data_file or '
        'set arguments --data_dir.')
 
-    # if input file is a dir, convert to a file path list
-    def list_files(input_data):
-        if tf.gfile.IsDirectory(input_data):
-            file_name = [f for f in tf.gfile.ListDirectory(input_data) if not f.startswith('.')]
-            return [input_data + '/' + f for f in file_name]
-        else:
-            return [input_data]
-    data_list = list_files(FLAGS.data_dir)
-
     print('-' * 80)
     tf.logging.info('='*30+' START TESTING'+'='*30)
     s_time = time.time()
-    results = model.evaluate(input_fn=lambda: input_fn(data_list, 1, FLAGS.batch_size, False, multivalue=False),
+    results = model.evaluate(input_fn=lambda: input_fn(FLAGS.data_dir, 1, FLAGS.batch_size, False, multivalue=False),
                              steps=None,  # Number of steps for which to evaluate model.
                              hooks=None,
                              checkpoint_path=FLAGS.check_point_path,  # If None, the latest checkpoint in model_dir is used.

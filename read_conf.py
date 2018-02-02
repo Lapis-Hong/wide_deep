@@ -2,160 +2,199 @@
 # -*- coding: utf-8 -*-
 # @Author: lapis-hong
 # @Date  : 2018/1/24
-from collections import OrderedDict
+import os
 import yaml
 
 
+SCHEMA_CONF_FILE = 'schema.yaml'
+FEATURE_CONF_FILE = 'feature.yaml'
+CROSS_FEATURE_CONF_FILE = 'cross_feature.yaml'
+TRAIN_CONF_FILE = 'train.yaml'
+
+
 class Config(object):
+    """Config class 
+    Class attributes: config, train, test, distribution, model, runconfig
+    Class methods: read_cross_feature_conf, read_feature_conf, get_feature_name
+    """
+    def __init__(self,
+                 schema_conf_file=SCHEMA_CONF_FILE,
+                 feature_conf_file=FEATURE_CONF_FILE,
+                 cross_feature_conf_file=CROSS_FEATURE_CONF_FILE,
+                 train_conf_file=TRAIN_CONF_FILE):
+        self._schema_conf_file = os.path.join('conf', schema_conf_file)
+        self._feature_conf_file = os.path.join('conf', feature_conf_file)
+        self._cross_feature_conf_file = os.path.join('conf', cross_feature_conf_file)
+        self._train_conf_file = os.path.join('conf', train_conf_file)
+        # self.feature_conf = self.read_feature_conf()
 
-    @classmethod
-    def __init__(cls):
-        with open('./conf/train.yaml') as f:
-            config = yaml.load(f)
-        cls.config = config
-        cls.train = config["train"]
-        cls.test = config["test"]
-        cls.distribution = config["distribution"]
-        cls.model = config["model"]
-        cls.runconfig = config["runconfig"]
-
-        # cls.model_type = config["model_type"]
-        # cls.train_data = config["train_data"]
-        # cls.test_data = config["test_data"]
-        # cls.train_epochs = config["train_epochs"]
-        # cls.batch_size = config["batch_size"]
-        # cls.keep_train = bool(config["keep_train"])
-        # cls.is_distribution = bool(config["is_distribution"])
-        # cls.shuffle_buffer_size = config["shuffle_buffer_size"]
-
-        # cls.hidden_units = config["hidden_units"]
-        # cls.wide_learning_rate = config["wide_learning_rate"]
-        # cls.deep_learning_rate = config["deep_learning_rate"]
-        # cls.wide_l1 = config["wide_l1"]
-        # cls.wide_l2 = config["wide_l2"]
-        # cls.deep_l1 = config["deep_l1"]
-        # cls.deep_l2 = config["deep_l2"]
-        # cls.dropout = config["dropout"]
+    def _read_schema(self):
+        with open(self._schema_conf_file) as f:
+            return [v.lower() for v in yaml.load(f).values()]
 
     @staticmethod
-    def _read_data_schema():
-        """Read data schema
-        Return: 
-            a list, raw data fields names in order, including the label
-        """
-        for line in open('./conf/data.schema'):
-            line = line.strip().strip('\n')
-            if line.startswith('#') or not line:
-                continue
-            return [w.strip().lower() for w in line.split(',')]
+    def _check_feature_conf(feature, valid_feature_name, **kwargs):
+        type_ = kwargs["type"]
+        trans = kwargs["transform"]
+        param = kwargs["parameter"]
+        if type_ is None or trans is None or param is None:
+            raise ValueError("All attributes are required in feature conf, found empty value for feature `{}`".format(feature))
+        if feature not in valid_feature_name:
+            raise ValueError("Invalid feature name `{}` in feature conf, "
+                             "must be consistent with schema conf".format(feature))
+        assert type_ in {'category', 'continuous'}, \
+            "Invalid type `{}` for feature `{}` in feature conf, must be 'category' or 'continuous'".format(type_, feature)
+        # check transform and parameter
+        if type_ == 'category':
+            assert trans in {'hash_bucket', 'identity', 'vocab'}, \
+                "Invalid transform `{}` for feature `{}` in feature conf, " \
+                "must be one of `hash_bucket`, `vocab`, `identity`.".format(trans, feature)
+            if trans == 'hash_bucket' or trans == 'identity':
+                if not isinstance(param, int):
+                    raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
+                                    '{} parameter must be an integer.'.format(param, feature, trans))
+            elif trans == 'vocab':
+                if not isinstance(param, (tuple, list)):
+                    raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
+                                    'vocab parameter must be a list.'.format(param, feature))
 
-    @classmethod
-    def read_feature_conf(cls):
-        """Read feature configuration, parse all used features conf
-        Usage: 
-        feature_conf_dic = read_feature_conf()
-        f_param = feature_conf_dic['request_id'].get('feature_parammeter'))
-        Return: 
-            {'request_id', {'feature_type': 'category', 'feature_transform': 'hash_bucket', 'feature_parameter': [500000]}, ...}"""
-        feature_schema = cls._read_data_schema()[1:]
-        feature_conf_dic = OrderedDict()
-        for nu, line in enumerate(open('./conf/feature.conf')):
-            line = line.strip().strip('\n')
-            if line.startswith('#') or not line:
-                continue
-            try:
-                f_name, f_type, f_transform, f_param_str = [w.strip().lower() for w in line.split(';')]
-            except ValueError:
-                raise ValueError('Can not parse line {}, please check the format in feature.conf'.format(nu+1))
-            assert f_name in feature_schema, 'Inconsistent feature name at line {}, see data.schema'.format(nu+1)
-            assert f_type in {'category', 'continuous'}, 'Invalid feature type at line {}'.format(nu+1)
-            assert f_transform in {'hash_bucket', 'vocab', 'identity', 'discretize', 'numeric'}, 'Invalid feature transform at line {}'.format(nu+1)
-            f_param = f_param_str.split(',')  # ['0', '1'] string list
-            feature_conf = {'feature_type': f_type, 'feature_transform': f_transform, 'feature_parameter': f_param}
-            feature_conf_dic[f_name] = feature_conf
-        return feature_conf_dic
+        else:
+            assert trans in {'numeric', 'discretize'}, \
+                "Invalid transform `{}` for feature `{}` in feature conf, " \
+                "continuous feature transform must be `numeric` or `discretize`.".format(trans, feature)
+            if trans == 'discretize':
+                if not isinstance(param, (tuple, list)):
+                    raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
+                                    'vocab parameter must be a list.'.format(param, feature))
+                for v in param:
+                    assert isinstance(v, (int, float)), \
+                        "Invalid parameter `{}` for feature `{}` in feature conf, " \
+                        "discretize parameter element must be integer or float.".format(param, feature)
 
-    @classmethod
-    def read_cross_feature_conf(cls):
-        """Read cross feature configuration
-        Return: list with tuple element, [(['adplan_id', 'category'], 10000, 1), (),...]
-        """
-        feature_used = cls.read_feature_conf().keys()
-        cross_feature_list = []
-        for nu, line in enumerate(open('./conf/cross_feature.conf')):
-            line = line.strip().strip('\n')
-            if line.startswith('#') or not line:
-                continue
-            try:
-                cross_feature, hash_bucket_size, is_deep = [w.strip().lower() for w in line.split(';')]
-            except ValueError:
-                raise ValueError('Can not parse line {}, please check the format in cross_feature.conf'.format(nu+1))
-                # print('Can not parse line {}, please check the format in cross_feature.conf'.format(nu+1))
-                # exit()
-                # exit('Can not parse line {}, please check the format in cross_feature.conf'.format(nu+1))
-            cross_feature = [w.strip().lower() for w in cross_feature.split(',')]
-            for f_name in cross_feature:  # check all cross feature is used
-                assert f_name in feature_used, 'Invalid cross feature name at line {}, not found in feature.conf'.format(nu+1)
-            assert len(cross_feature) > 1, 'Invalid at line {}, cross feature name at least 2'.format(nu+1)
-            # hash_bucket_size = 1000*int(hash_bucket_size.replace('k', '')) if hash_bucket_size else 10000
-            hash_bucket_size = int(1000 * float(hash_bucket_size.replace('k', '') or 10))  # default 10k
-            # is_deep = int(is_deep) if is_deep else 1  # default 1
-            is_deep = int(is_deep or 1)  # default 1
-            cross_feature_list.append((cross_feature, hash_bucket_size, is_deep))
-        return cross_feature_list
+    @staticmethod
+    def _check_cross_feature_conf(features, valid_feature_name, **kwargs):
+        features_list = [f.strip() for f in features.split('&')]
+        hash_bucket_size = kwargs["hash_bucket_size"]
+        is_deep = kwargs["is_deep"]
+        assert len(features_list) > 1, \
+            'Invalid cross feature name `{}` in cross feature conf,  at least 2 features'.format(features)
+        for f in features_list:
+            if f not in valid_feature_name:
+                raise ValueError("Invalid cross feature name `{}` in cross feature conf, "
+                                 "must be consistent with feature conf".format(features))
+        if hash_bucket_size:
+            assert isinstance(hash_bucket_size, (int, float)), \
+                'Invalid hash_bucket_size `{}` for features `{}` ' \
+                'in cross feature conf, expected int or float'.format(hash_bucket_size, features)
+        if is_deep:
+            assert is_deep in {0, 1}, \
+                'Invalid is_deep `{}` for features `{}`, ' \
+                'expected 0 or 1.'.format(is_deep, features)
 
-    @classmethod
-    def get_feature_name(cls, feature_type='all'):
+    def read_feature_conf(self):
+        with open(self._feature_conf_file) as f:
+            feature_conf = yaml.load(f)
+            valid_feature_name = self._read_schema()[1:]
+            for feature, conf in feature_conf.items():
+                self._check_feature_conf(feature.lower(), valid_feature_name, **conf)
+            return feature_conf
+
+    def read_cross_feature_conf(self):
+        with open(self._cross_feature_conf_file) as f:
+            cross_feature_conf = yaml.load(f)
+            conf_list = []
+            valid_feature_name = self.read_feature_conf()  # used features
+            for features, conf in cross_feature_conf.items():
+                self._check_cross_feature_conf(features, valid_feature_name, **conf)
+                features = [f.strip() for f in features.split('&')]
+                hash_bucket_size = 1000*conf["hash_bucket_size"] or 10000  # defaults to 10k
+                is_deep = conf["is_deep"] if conf["is_deep"] is not None else 1  # defaults to 10k
+                conf_list.append((features, hash_bucket_size, is_deep))
+            return conf_list
+
+    def _read_train_conf(self):
+        with open(self._train_conf_file) as f:
+            return yaml.load(f)
+
+    @property
+    def config(self):
+        return self._read_train_conf()
+
+    @property
+    def train(self):
+        return self._read_train_conf()["train"]
+
+    @property
+    def test(self):
+        return self._read_train_conf()["test"]
+
+    @property
+    def distribution(self):
+        return self._read_train_conf()["distribution"]
+
+    @property
+    def model(self):
+        return self._read_train_conf()["model"]
+
+    @property
+    def runconfig(self):
+        return self._read_train_conf()["runconfig"]
+
+    def get_feature_name(self, feature_type='all'):
         """
         Args:
          feature_type: one of {'all', 'used', 'category', 'continuous'}
         Return: feature name list
         """
-        feature_conf_dic = cls.read_feature_conf()
+        feature_conf_dic = self.read_feature_conf()
         if feature_type == 'all':
-            return cls._read_data_schema()[1:]
+            return self._read_schema()[1:]
         elif feature_type == 'used':
             return feature_conf_dic.keys()
+        elif feature_type == 'unused':
+            return set(self._read_schema()[1:]) - set(feature_conf_dic.keys())
         elif feature_type == 'category':
-            return [feature for feature, conf in feature_conf_dic.items() if conf['feature_type'] == 'category']
+            return [feature for feature, conf in feature_conf_dic.items() if conf['type'] == 'category']
         elif feature_type == 'continuous':
-            return [feature for feature, conf in feature_conf_dic.items() if conf['feature_type'] == 'continuous']
+            return [feature for feature, conf in feature_conf_dic.items() if conf['type'] == 'continuous']
         else:
-            raise TypeError("Invalid parameter, must be one of 'all', 'used', 'category, 'continuous")
+            raise ValueError("Invalid parameter, must be one of 'all', 'used', 'category, 'continuous")
 
 
 def _test():
+    config = Config()
     """test for Config methods"""
     print('\nTrain config:')
-    config = Config()
     print(config.config)
+    print(Config.config)
     print(config.train)
     print(config.runconfig)
     print(config.model)
     print(config.model["hidden_units"])
     print(config.train["model_dir"])
 
-    print('\nInput data schema:')
-    data_schema = Config._read_data_schema()
-    print(data_schema)
-
-    feature_conf_dic = Config.read_feature_conf()
+    feature_conf_dic = config.read_feature_conf()
     print('\nFeature conf:')
     for k, v in feature_conf_dic.items():
         print(k, v)
 
-    cross_feature_list = Config.read_cross_feature_conf()
+    cross_feature_list = config.read_cross_feature_conf()
     print('\nCross feature conf:')
     for f in cross_feature_list:
         print(f)
 
-    category_feature = Config.get_feature_name('category')
+    category_feature = config.get_feature_name('category')
     print('\nCategory feature:')
     print(category_feature)
 
+    members = [m for m in Config.__dict__ if not m.startswith('_')]
+    print('\nConfig class members:')
+    print(members)
 
 if __name__ == '__main__':
     _test()
-    Config.get_feature_name('used')
+
+
+
 
 

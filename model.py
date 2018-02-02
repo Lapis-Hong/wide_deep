@@ -30,27 +30,29 @@ def build_model_columns():
     Build wide and deep feature columns from custom feature conf using tf.feature_column API
     wide_columns: category features + cross_features + [discretized continuous features]
     deep_columns: continuous features + category features(onehot or embedding for sparse features) + [cross_features(embedding)]
-    Return: _CategoricalColumn and __DenseColumn for tf.estimators API
+    Return: _CategoricalColumn and __DenseColumn in tf.estimators API
     """
     def embedding_dim(dim):
         """empirical embedding dim"""
         return int(np.power(2, np.ceil(np.log(dim**0.25))))
-    feature_conf_dic = Config.read_feature_conf()
+
+    feature_conf_dic = Config().read_feature_conf()
     tf.logging.info('Total used feature class: {}'.format(len(feature_conf_dic)))
-    cross_feature_list = Config.read_cross_feature_conf()
+    cross_feature_list = Config().read_cross_feature_conf()
     tf.logging.info('Total used cross feature class: {}'.format(len(cross_feature_list)))
     wide_columns = []
     deep_columns = []
     wide_dim = 0
     deep_dim = 0
     for feature, conf in feature_conf_dic.items():
-        f_type, f_tran, f_param = conf.values()
+        f_type = conf["type"]
+        f_tran = conf["transform"]
+        f_param = conf["parameter"]
         if f_type == 'category':
             if f_tran == 'hash_bucket':
-                hash_bucket_size = int(f_param[0])
-                assert len(f_param) == 1, 'Invalid param conf for feature {}'.format(feature)
+                hash_bucket_size = f_param
                 col = categorical_column_with_hash_bucket(feature,
-                                                          hash_bucket_size=hash_bucket_size,
+                                                          hash_bucket_size=f_param,
                                                           dtype=tf.string)
                 wide_columns.append(col)
                 wide_dim += hash_bucket_size
@@ -75,7 +77,7 @@ def build_model_columns():
                 deep_columns.append(indicator_column(col))
                 deep_dim += len(f_param)
             elif f_tran == 'identity':
-                num_buckets = int(f_param[0])
+                num_buckets = f_param
                 col = categorical_column_with_identity(feature,
                                                        num_buckets=num_buckets,
                                                        default_value=0)  # Values outside range will result in default_value if specified, otherwise it will fail.
@@ -83,17 +85,14 @@ def build_model_columns():
                 wide_dim += num_buckets
                 deep_columns.append(indicator_column(col))
                 deep_dim += num_buckets
-            else:
-                raise TypeError('Invalid feature transform for feature {}'.format(feature))
         else:
-            assert f_tran in {'numeric', 'discretize'}
             col = numeric_column(feature,
                                  shape=(1,),
                                  default_value=None,
                                  dtype=tf.float32,
                                  normalizer_fn=None)  # TODO，standard normalization
             if f_tran == 'discretize':  # whether include continuous features in wide part
-                wide_columns.append(bucketized_column(col, boundaries=map(int, f_param)))
+                wide_columns.append(bucketized_column(col, boundaries=f_param))
                 wide_dim += (len(f_param)+1)
             deep_columns.append(col)
             deep_dim += 1
@@ -101,9 +100,10 @@ def build_model_columns():
     for cross_features, hash_bucket_size, is_deep in cross_feature_list:
         cf_list = []
         for f in cross_features:
-            f_type, f_tran, f_param = feature_conf_dic[f].values()
+            f_type = feature_conf_dic[f]["type"]
+            f_param = feature_conf_dic[f]["parameter"]
             if f_type == 'continuous':
-                cf_list.append(bucketized_column(numeric_column(f), boundaries=map(int, f_param)))
+                cf_list.append(bucketized_column(numeric_column(f), boundaries=f_param))
             else:  # category col only put the name in crossed_column
                 cf_list.append(f)
         col = crossed_column(cf_list, hash_bucket_size)
@@ -189,7 +189,7 @@ def build_estimator(model_dir, model_type):
             config=run_config)
     else:
         return tf.estimator.DNNLinearCombinedClassifier(
-            model_dir=model_dir,
+            model_dir=model_dir,  # self._model_dir = model_dir or self._config.model_dir
             linear_feature_columns=wide_columns,
             linear_optimizer=tf.train.FtrlOptimizer(
                 learning_rate=CONFIG["wide_learning_rate"],
@@ -212,9 +212,9 @@ def build_estimator(model_dir, model_type):
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.DEBUG)
-    #build_model_columns()
+    build_model_columns()
     build_distribution()
-    #model = build_estimator('./model', 'wide')
+    model = build_estimator('./model', 'wide')
     # print(model.config)  # <tensorflow.python.estimator.run_config.RunConfig object at 0x118de4e10>
     # print(model.model_dir)  # ./model
     # print(model.model_fn)  # <function public_model_fn at 0x118de7b18>

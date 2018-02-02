@@ -1,0 +1,25 @@
+dyld: warning, LC_RPATH $ORIGIN/../../_solib_darwin_x86_64/_U_S_Stensorflow_Spython_C_Upywrap_Utensorflow_Uinternal.so___Utensorflow in /Library/Python/2.7/site-packages/tensorflow/python/_pywrap_tensorflow_internal.so being ignored in restricted program because it is a relative path
+INFO:tensorflow:Total used feature class: 43
+INFO:tensorflow:Total used cross feature class: 31
+INFO:tensorflow:Build total 74 wide columns
+INFO:tensorflow:Build total 74 deep columns
+INFO:tensorflow:Wide input dimension is: 22714923
+INFO:tensorflow:Deep input dimension is: 784
+INFO:tensorflow:TF_CONFIG environment variable: {u'cluster': {u'ps': [u'10.172.110.162:3333'], u'chief': [u'10.120.180.212:3333'], u'worker': [u'10.120.180.213:3333']}, u'task': {u'index': 0, u'type': u'ps'}}
+INFO:tensorflow:TF_CONFIG environment variable: {u'cluster': {u'ps': [u'10.172.110.162:3333'], u'chief': [u'10.120.180.212:3333'], u'worker': [u'10.120.180.213:3333']}, u'task': {u'index': 0, u'type': u'ps'}}
+INFO:tensorflow:Using config: {'_save_checkpoints_secs': 1500, '_session_config': device_count {
+  key: "GPU"
+}
+, '_keep_checkpoint_max': 10, '_task_type': u'ps', '_is_chief': False, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x10eeee890>, '_save_checkpoints_steps': None, '_keep_checkpoint_every_n_hours': 1, '_service': None, '_num_ps_replicas': 1, '_tf_random_seed': None, '_master': u'grpc://10.172.110.162:3333', '_num_worker_replicas': 2, '_task_id': 0, '_log_step_count_steps': 1000, '_model_dir': 'model/wide_deep', '_save_summary_steps': 1000}
+INFO:tensorflow:Build estimator: <tensorflow.python.estimator.canned.dnn_linear_combined.DNNLinearCombinedClassifier object at 0x10eeeea10>
+Using TensorFlow version 1.4.1
+Model type: wide_deep
+Model directory: model/wide_deep
+Traceback (most recent call last):
+  File "test.py", line 110, in <module>
+    tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+  File "/Library/Python/2.7/site-packages/tensorflow/python/platform/app.py", line 48, in run
+    _sys.exit(main(_sys.argv[:1] + flags_passthrough))
+  File "test.py", line 74, in main
+    raise ValueError('No model checkpoint found, please check the model dir.')
+ValueError: No model checkpoint found, please check the model dir.

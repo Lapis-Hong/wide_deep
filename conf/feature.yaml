@@ -1,0 +1,260 @@
+# Feature Configuration
+
+# Each feature consists 3 attributes `type`, `transform`, `parameter`, all attributes are required.
+# 1. feature: feature name, must in schema.yaml
+# 2. type: feature type,  'category' or 'continuous'.
+# 3. transform: determine feature transform in tensorflow
+#    (1) type: category, then transform is one of {'hash_bucket', 'vocab', 'identity'}
+#         transform: hash_bucket  ==> tf.feature.categorical_column_with_hash_bucket
+#         transform: vocab        ==> tf.feature.categorical_column_with_vocabulary_list
+#         transform: identity     ==> tf. feature.categorical_column_with_identity
+#    (2) type: continuous, then transform is one of {'numeric', 'discretize'}
+#         transform: numeric      ==> tf.feature_column.numeric_column
+#         transform: discretize   ==> tf.feature_column.bucketized_column(tf.feature_column.numeric_column())
+# 4. parameter: main parameter for each transform, see details in tf.feature_column
+#        transform          parameter
+#        hash_bucket   ==>  hash_bucket_size  # int
+#        vocab         ==>  vocabulary_list   # list
+#        identity      ==>  num_buckets       # int
+#        numeric       ==>  None              # no use
+#        discretize    ==>  boundaries        # list
+
+# Set continuous feature transform 'discretize' to  bucketized to wide input.
+# Set unused features by using symbol `#` ahead of the lines. All listed features are used in model.
+# Note:
+#   if category size=1000, how much should hash_bucket_size be ?
+#   larger require more space and complexity, but smaller cause more collision
+#   here use the strategy that for low sparsity category, set 3-5times hash_bucket_size to reduce collision
+#   for high sparsity category, set 1 times hash_bucket_size.
+
+adplan_id:
+  type: category
+  transform: hash_bucket
+  parameter: 10000
+
+scheduling_id:
+  type: category
+  transform: hash_bucket
+  parameter: 10000
+
+idea_id:
+  type: category
+  transform: hash_bucket
+  parameter: 20000
+
+province_id:
+  type: category
+  transform: hash_bucket
+  parameter: 100
+
+city_id:
+  type: category
+  transform: hash_bucket
+  parameter: 1000
+
+ip_original:
+  type: category
+  transform: hash_bucket
+  parameter: 500000
+
+galaxy_id:
+  type: category
+  transform: hash_bucket
+  parameter: 10000000
+
+app_version:
+  type: category
+  transform: hash_bucket
+  parameter: 100
+
+category:
+  type: category
+  transform: hash_bucket
+  parameter: 500
+
+u:
+  type: category
+  transform: hash_bucket
+  parameter: 10000000
+
+ctr_strategy_type:
+  type: category
+  transform: hash_bucket
+  parameter: 100
+
+device_model:
+  type: category
+  transform: hash_bucket
+  parameter: 10000
+
+article_tag:
+  type: category
+  transform: hash_bucket
+  parameter: 500
+
+user_cates:
+  type: category
+  transform: hash_bucket
+  parameter: 1000
+
+user_industrys:
+  type: category
+  transform: hash_bucket
+  parameter: 1000
+
+ad_cates:
+  type: category
+  transform: hash_bucket
+  parameter: 1000
+
+ad_idea_types:
+  type: category
+  transform: hash_bucket
+  parameter: 100
+
+ucomp:
+  type: category
+  transform: hash_bucket
+  parameter: 1000
+
+cost_type:
+  type: category
+  transform: vocab
+  parameter: [0,1]
+
+os:
+  type: category
+  transform: vocab
+  parameter: [0,1,2,3,4,5]
+
+device_type:
+  type: category
+  transform: vocab
+  parameter: [0,1,2]
+
+
+client_type:
+  type: category
+  transform: vocab
+  parameter: ['a', 'w']
+
+network:
+  type: category
+  transform: vocab
+  parameter: [0,1,2,3,4]
+
+location:
+  type: category
+  transform: vocab
+  parameter: [1,2,3,4,5,6,7,8,9,20,21,22,23,24,25,26,27,28,29,50,51,52,53,54,60,101,102,200,201,202,301,302,303,304,1001,1002,2001,2002,3001,3002,4001,4002,5001,5002,6001,6002,7001,7002,8001,8002,9001,10001,10002,11001,11002]
+
+isweekend:
+  type: category
+  transform: vocab
+  parameter: [0,1]
+
+weekdays:
+  type: category
+  transform: vocab
+  parameter: [1,2,3,4,5,6,7]
+
+month:
+  type: category
+  transform: vocab
+  parameter: ['01','02','03','04','05','06','07','08','09','10','11','12']
+
+day:
+  type: category
+  transform: vocab
+  parameter: ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15',
+             '16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31']
+
+hour:
+  type: category
+  transform: vocab
+  parameter: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+
+site:
+  type: category
+  transform: vocab
+  parameter: [1,2,3,4,5,6,8,9,10,11]
+
+status:
+  type: category
+  transform: vocab
+  parameter: [0,1,2,3]
+
+is_cache:
+  type: category
+  transform: vocab
+  parameter: [0,1]
+
+is_pasv_flush:
+  type: category
+  transform: vocab
+  parameter: [0,1]
+
+isp:
+  type: category
+  transform: vocab
+  parameter: [1,2,3,4]
+
+ugender:
+  type: category
+  transform: vocab
+  parameter: [male,female]
+
+rk_age_range:
+  type: category
+  transform: vocab
+  parameter: [6-10,11-15,16-20,21-25,26-30,31-35,36-40,41-45,46-50,51-55,56-60]
+
+rk_hour:
+  type: category
+  transform: vocab
+  parameter: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]
+
+idea_type:
+  type: category
+  transform: identity
+  parameter: 15
+
+industry_level1_id:
+  type: category
+  transform: identity
+  parameter: 18
+
+industry_level2_id:
+  type: category
+  transform: identity
+  parameter: 152
+
+longitude:
+  type: continuous
+  transform: discretize
+  parameter: [90,95,100,105,110,115,120,125,130]
+
+latitude:
+  type: continuous
+  transform: discretize
+  parameter: [20,25,30,35,40,45,50]
+
+age:
+  type: continuous
+  transform: discretize
+  parameter: [15,20,25,30,35,40,45,50,55,60,65]
+
+#Request_id;category;hash_bucket;500000
+#account_id;category;hash_bucket;1000
+#dt;category;vocab;0
+#host_name;category;hash_bucket;30
+#request_tm;category;hash_bucket;1000
+#log_version;category;vocab;1
+#pay;continuous;discretize;100000,200000,300000,500000,1000000,1500000
+#ecpm;continuous;discretize;50000,100000,200000,500000,1000000,2000000,5000000,10000000
+#ecpm2;continuous;discretize;50000,100000,200000,500000,1000000,2000000,5000000,10000000
+#winprc;continuous;discretize;500,1000,2000,5000,10000,50000,100000,150000,200000,250000,300000,350000,400000,500000
+#ctr;continuous;discretize;10000,20000,30000,40000,50000,60000,70000,80000,90000,100000,110000,120000,130000,140000,150000,160000,170000,180000,190000,200000,210000,220000,230000
+#rpid;category;vocab;0
+#market;category;vocab;0,1
+#combine_id;category;hash_bucket;220000

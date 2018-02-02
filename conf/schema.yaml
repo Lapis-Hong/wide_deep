@@ -1,0 +1,67 @@
+# Input Data Schema
+# The order must be consistent with the raw data.
+# First is the label.
+# Case insensitive here.
+# Feature ID: Feature Name
+1: clk
+2: request_id
+3: account_id
+4: adplan_id
+5: scheduling_id
+6: position_id
+7: idea_id
+8: cost_type
+9: province_id
+10: city_id
+11: ip_original
+12: os
+13: device_type
+14: client_type
+15: galaxy_id
+16: network
+17: app_version
+18: idea_type
+19: tag
+20: industry_level1_id
+21: industry_level2_id
+22: category
+23: location
+24: isweekend
+25: weekdays
+26: year
+27: month
+28: day
+29: hour
+30: dt
+31: host_name
+32: request_tm
+33: log_version
+34: pay
+35: ecpm
+36: ecpm2
+37: winprc
+38: ctr
+39: rpid
+40: u
+41: market
+42: site
+43: status
+44: is_cache
+45: ctr_strategy_type
+46: is_pasv_flush
+47: isp
+48: combine_id
+49: device_model
+50: article_tag
+51: longitude
+52: latitude
+53: user_cates
+54: user_industrys
+55: ad_cates
+56: ad_idea_types
+57: age
+58: ugender
+59: ucomp
+60: rk_age_range
+61: rk_hour
+

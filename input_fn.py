@@ -14,13 +14,13 @@ def _column_to_csv_defaults():
     """
     _CSV_COLUMN_DEFAULTS = OrderedDict()
     _CSV_COLUMN_DEFAULTS['label'] = [0]  # first label default, empty if the field is must
-    feature_all = Config.get_feature_name()
-    feature_conf_dic = Config.read_feature_conf()
+    feature_all = Config().get_feature_name()
+    feature_conf_dic = Config().read_feature_conf()
     for f in feature_all:
         if f in feature_conf_dic:  # used features
             conf = feature_conf_dic[f]
-            if conf['feature_type'] == 'category':
-                if conf['feature_transform'] == 'identity':  # identity category column need int type
+            if conf['type'] == 'category':
+                if conf['transform'] == 'identity':  # identity category column need int type
                     _CSV_COLUMN_DEFAULTS[f] = [0]
                 else:
                     _CSV_COLUMN_DEFAULTS[f] = ['']
@@ -37,13 +37,13 @@ def _column_to_dtype():
      """
     _column_dtype_dic = OrderedDict()
     _column_dtype_dic['label'] = tf.int32
-    feature_all = Config.get_feature_name()
-    feature_conf_dic = Config.read_feature_conf()
+    feature_all = Config().get_feature_name()
+    feature_conf_dic = Config().read_feature_conf()
     for f in feature_all:
         if f in feature_conf_dic:
             conf = feature_conf_dic[f]
-            if conf['feature_type'] == 'category':
-                if conf['feature_transform'] == 'identity':  # identity category column need int type
+            if conf['type'] == 'category':
+                if conf['transform'] == 'identity':  # identity category column need int type
                     _column_dtype_dic[f] = tf.int32
                 else:
                     _column_dtype_dic[f] = tf.string
@@ -56,7 +56,7 @@ def _column_to_dtype():
 
 def _parse_csv(value):  # value: Tensor("arg0:0", shape=(), dtype=string)
     _CSV_COLUMN_DEFAULTS = _column_to_csv_defaults()
-    feature_unused = set(Config.get_feature_name('all'))-set(Config.get_feature_name('used'))
+    feature_unused = Config().get_feature_name('unused')
     columns = tf.decode_csv(value, record_defaults=_CSV_COLUMN_DEFAULTS.values(), field_delim='\t', use_quote_delim=False, na_value='-')
     # na_value fill with record_defaults
     # `tf.decode_csv` return Tensor list: <tf.Tensor 'DecodeCSV:60' shape=() dtype=string>  rank 0 Tensor
@@ -70,7 +70,7 @@ def _parse_csv(value):  # value: Tensor("arg0:0", shape=(), dtype=string)
 
 def _parse_csv_multivalue(value):
     _CSV_COLUMN_DEFAULTS = _column_to_csv_defaults()
-    feature_unused = set(Config.get_feature_name('all')) - set(Config.get_feature_name('used'))
+    feature_unused = Config().get_feature_name('unused')
     columns = tf.decode_csv(value, record_defaults=_CSV_COLUMN_DEFAULTS.values(), field_delim='\t', na_value='-')
     # `tf.decode_csv` return Tensor list: <tf.Tensor 'DecodeCSV:60' shape=() dtype=string>
     features = {}
@@ -123,12 +123,9 @@ def input_fn(data_file, num_epochs, batch_size, shuffle=True, multivalue=False):
     #     "hdfs://namenode:8020/path/to/file1.csv",
     #     "hdfs://namenode:8020/path/to/file2.csv",
     # ])
-    # assert tf.gfile.Exists(data_file), (
-    #   '%s not found. Please make sure you have either default data_file or '
-    #   'set both arguments --train_data and --test_data.' % data_file)
-    # if tf.gfile.IsDirectory(data_file):
-    #     data_file_list = [f for f in tf.gfile.ListDirectory(data_file) if not f.startswith('.')]
-    #     data_file = [data_file+'/'+file_name for file_name in data_file_list]
+    if tf.gfile.IsDirectory(data_file):
+        data_file_list = [f for f in tf.gfile.ListDirectory(data_file) if not f.startswith('.')]
+        data_file = [data_file+'/'+file_name for file_name in data_file_list]
 
     # Extract lines from input files using the Dataset API.
     dataset = tf.data.TextLineDataset(data_file)
@@ -142,7 +139,7 @@ def input_fn(data_file, num_epochs, batch_size, shuffle=True, multivalue=False):
         # We call repeat after shuffling, rather than before, to prevent separate
         # epochs from blending together.
         dataset = dataset.repeat(num_epochs)
-        padding_dic = {k: [None] for k in Config.get_feature_name('used')}
+        padding_dic = {k: [None] for k in Config().get_feature_name('used')}
         dataset.padded_batch(batch_size, padded_shapes=(padding_dic, [1]))  # rank no change
     else:
         dataset = dataset.map(_parse_csv, num_parallel_calls=24)

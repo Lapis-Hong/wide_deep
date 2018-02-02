@@ -68,6 +68,18 @@ def elapse_time(start_time):
     return round((time.time()-start_time) / 60)
 
 
+def list_files(input_data):
+    """if input file is a dir, convert to a file path list
+    Return:
+         file path list
+    """
+    if tf.gfile.IsDirectory(input_data):
+        file_name = [f for f in tf.gfile.ListDirectory(input_data) if not f.startswith('.')]
+        return [input_data + '/' + f for f in file_name]
+    else:
+        return [input_data]
+
+
 def train():
     print("Using Train config: {}".format(CONFIG.train))
     # model info
@@ -87,16 +99,7 @@ def train():
         'train or test data file not found. Please make sure you have either default data_file or '
         'set both arguments --train_data and --test_data.')
 
-    # if input file is a dir, convert to a file path list
-    def list_files(input_data):
-        if tf.gfile.IsDirectory(input_data):
-            file_name = [f for f in tf.gfile.ListDirectory(input_data) if not f.startswith('.')]
-            return [input_data + '/' + f for f in file_name]
-        else:
-            return [input_data]
-
     train_data_list = list_files(FLAGS.train_data)
-    test_data_list = list_files(FLAGS.test_data)
 
     for n in range(FLAGS.train_epochs):
         print()
@@ -115,7 +118,7 @@ def train():
             tf.logging.info('<EPOCH {}>: Start evaluating {}'.format(n + 1, FLAGS.test_data))
             s_time = time.time()
             results = model.evaluate(
-                input_fn=lambda: input_fn(test_data_list, 1, FLAGS.batch_size, False, multivalue=False),
+                input_fn=lambda: input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False, multivalue=False),
                 steps=None,  # Number of steps for which to evaluate model.
                 hooks=None,
                 checkpoint_path=None,  # If None, the latest checkpoint in model_dir is used.
@@ -132,24 +135,66 @@ def train():
                 print('%s: %s' % (key, results[key]))
 
 
+# def _create_experiment_fn():
+#     """Experiment creation function."""
+#     # Get configuration from environment variables, implementation of tf.estimator.RunConfig interface.
+#     # run_config = tf.contrib.learn.RunConfig()
+#     estimator = build_estimator(FLAGS.model_dir, FLAGS.model_type)
+#     return tf.contrib.learn.Experiment(
+#         estimator=estimator,
+#         train_input_fn=lambda: input_fn(FLAGS.train_data, 1, FLAGS.batch_size, multivalue=False),
+#         eval_input_fn=lambda: input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False, multivalue=False),
+#         train_steps=1000,  # Perform this many steps of training. None, the default, means train forever.
+#         eval_steps=None  # evaluate runs until input is exhausted (or another exception is raised), or for eval_steps steps, if specified.
+#     )
+
+
 def main(unused_argv):
     print("Using TensorFlow version %s" % tf.__version__)
     assert "1.4" <= tf.__version__, "Need TensorFlow r1.4 or later."
 
     if CONFIG.distribution["is_distribution"]:
+        print("Using PID: {}".format(os.getpid()))
         cluster = CONFIG.distribution["cluster"]
         job_name = CONFIG.distribution["job_name"]
         task_index = CONFIG.distribution["task_index"]
-        print("Using Distributed TensoFlow. Local host: {} Job_name: {} Task_index: {}"
+        print("Using Distributed TensorFlow. Local host: {} Job_name: {} Task_index: {}"
               .format(cluster[job_name][task_index], job_name, task_index))
         cluster = tf.train.ClusterSpec(CONFIG.distribution["cluster"])
         server = tf.train.Server(cluster,
                                  job_name=job_name,
                                  task_index=task_index)
         if job_name == 'ps':
+            # wait for incoming connection forever
             server.join()
+            # sess = tf.Session(server.target)
+            # queue = create_done_queue(task_index, num_workers)
+            # for i in range(num_workers):
+            #     sess.run(queue.dequeue())
+            #     print("ps {} received worker {} done".format(task_index, i)
+            # print("ps {} quitting".format(task_index))
         else:
-            train()
+            # TODO：supervisor & MonotoredTrainingSession & experiment
+            # Each worker only needs to contact the PS task(s) and the local worker task.
+            # config = tf.ConfigProto(device_filters=[
+            #     '/job:ps', '/job:worker/task:%d' % arguments.task_index])
+            with tf.device(tf.train.replica_device_setter(
+                    worker_device="/job:worker/task:%d" % task_index,
+                    cluster=cluster)):
+                train()
+            # e = _create_experiment_fn()
+            # e.train_and_evaluate()  # call estimator's train() and evaluate() method
+            hooks = [tf.train.StopAtStepHook(last_step=10000)]
+
+            # with tf.train.MonitoredTrainingSession(
+            #         master=server.target,
+            #         is_chief=(task_index == 0),
+            #         checkpoint_dir=args.model_dir,
+            #         hooks=hooks
+            # ) as mon_sess:
+            #     while not mon_sess.should_stop():
+            #         # mon_sess.run()
+            #         classifier.fit(input_fn=train_input_fn, steps=1)
 
     else:
         train()
