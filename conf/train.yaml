@@ -2,30 +2,25 @@
 # Note this configuration set defaults to argparser.
 # Same params can be overrided by using command line.
 # For example, `python train.py --model_dir ./model_new`
+# For optional parameter, set empty to be defaults None
 
 
-# Train Parameters
+# Train & Test Parameters
 train:
   model_dir: model
   model_type: wide_deep
   train_data: ./data/train
-  test_data: ./data/eval
+  eval_data: ./data/eval
+  test_data: ./data/eval/test
   train_epochs: 5
   batch_size: 256
   keep_train: 0
   shuffle_buffer_size: 2000000
+  # optional for test
+  checkpoint_path:
 
-# Test Parameters
-test:
-  model_dir: model
-  model_type: wide_deep
-  data_dir: /home/appops/data/test/20171213
-  batch_size: 256
-  # set empty to be defaults None
-  steps:
-  check_point_path:
 
-# Distribution Spec
+# Distribution Parameters
 # job_name: one of `ps`, `chief`, `worker`.
 # task_index: the host index, start from 0.
 distribution:
@@ -43,22 +38,21 @@ model:
   wide_learning_rate: 0.1
   deep_learning_rate: 0.1
 
-  # set empty to not use.
+  # optional
   wide_l1: 0.5
   wide_l2: 1
   deep_l1: 0.01
   deep_l2: 0.01
   dropout:
 
-# Saving Parameters
+# Saving Parameters (Optional)
 # Defined in tf.estimator.RunConfig.
 # See details in https://www.tensorflow.org/api_docs/python/tf/estimator/RunConfig
-# set empty to be defaults None
 runconfig:
   tf_random_seed:
   save_summary_steps: 1000  # Defaults to 100
   save_checkpoints_steps:   # Set either save_checkpoints_steps or save_checkpoints_secs
-  save_checkpoints_secs: 1500  # Defaults to 600
+  save_checkpoints_secs: 1500  # Defaults to 600 (10 minutes)
   keep_checkpoint_max: 10  # Defaults to 5
   keep_checkpoint_every_n_hours: 1  # Defaults to 10000
   log_step_count_steps: 1000  # Defaults to 100

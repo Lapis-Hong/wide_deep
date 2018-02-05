@@ -13,13 +13,13 @@ import shutil
 import sys
 import time
 import os
-from functools import wraps
 
 import tensorflow as tf
 
 from read_conf import Config
-from model import build_estimator
-from input_fn import input_fn
+from model import WideAndDeep
+from dataset import Dataset
+from util import elapse_time, list_files
 
 CONFIG = Config().train
 parser = argparse.ArgumentParser(description='Train Wide and Deep Model.')
@@ -41,112 +41,86 @@ parser.add_argument(
     help='Number of examples per batch.')
 parser.add_argument(
     '--train_data', type=str, default=CONFIG["train_data"],
-    help='Path to the training data.')
+    help='Path to the train data.')
+parser.add_argument(
+    '--eval_data', type=str, default=CONFIG["eval_data"],
+    help='Path to the validation data.')
 parser.add_argument(
     '--test_data', type=str, default=CONFIG["test_data"],
     help='Path to the test data.')
 parser.add_argument(
     '--keep_train', type=int, default=CONFIG["keep_train"],
     help='Whether to keep training on previous trained model.')
-
-
-def timer(info=''):
-    """parameter decarotor"""
-    def _timer(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):  # passing params to func
-            s_time = time.time()
-            func(*args, **kwargs)
-            e_time = time.time()
-            period = (e_time-s_time) / 60.0
-            print(info + '-> elapsed time: %.3f minutes' % period)
-        return wrapper
-    return _timer
-
-
-def elapse_time(start_time):
-    return round((time.time()-start_time) / 60)
-
-
-def list_files(input_data):
-    """if input file is a dir, convert to a file path list
-    Return:
-         file path list
-    """
-    if tf.gfile.IsDirectory(input_data):
-        file_name = [f for f in tf.gfile.ListDirectory(input_data) if not f.startswith('.')]
-        return [input_data + '/' + f for f in file_name]
-    else:
-        return [input_data]
+parser.add_argument(
+    '--checkpoint_path', type=int, default=CONFIG["checkpoint_path"],
+    help='Model checkpoint path for testing.')
 
 
 def train():
     print("Using Train config: {}".format(CONFIG.train))
-    # model info
     print('Model type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
     print('Model directory: {}'.format(model_dir))
-    # tf.gfile.MakeDirs(model_dir)  # tf.estimator auto create dir
     if not FLAGS.keep_train:
-        # Clean up the model directory if present
+        # Clean up the model directory if not keep training
         shutil.rmtree(model_dir, ignore_errors=True)
         print('Remove model directory: {}'.format(model_dir))
-    model = build_estimator(model_dir, FLAGS.model_type)
+    model = WideAndDeep().build_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
 
-    # check file exsits
-    assert tf.gfile.Exists(FLAGS.train_data) and tf.gfile.Exists(FLAGS.test_data), (
-        'train or test data file not found. Please make sure you have either default data_file or '
-        'set both arguments --train_data and --test_data.')
-
-    train_data_list = list_files(FLAGS.train_data)
-
     for n in range(FLAGS.train_epochs):
-        print()
-        tf.logging.info('=' * 30 + ' START EPOCH {} '.format(n + 1) + '=' * 30 + '\n')
+        tf.logging.info('\n=' * 30 + ' START EPOCH {} '.format(n + 1) + '=' * 30 + '\n')
+        train_data_list = list_files(FLAGS.train_data)  # dir to file list
         for f in train_data_list:
-            s_time = time.time()
+            t0 = time.time()
             tf.logging.info('<EPOCH {}>: Start training {}'.format(n + 1, f))
-            model.train(input_fn=lambda: input_fn(f, 1, FLAGS.batch_size, multivalue=False),
+            model.train(input_fn=lambda: Dataset().input_fn(f, 1, FLAGS.batch_size),
                         hooks=None,
                         steps=None,
                         max_steps=None,
-                        saving_listeners=None
-                        )
-            tf.logging.info('<EPOCH {}>: Finish training {}, take {} mins'.format(n + 1, f, elapse_time(s_time)))
+                        saving_listeners=None)
+            tf.logging.info('<EPOCH {}>: Finish training {}, take {} mins'.format(n + 1, f, elapse_time(t0)))
             print('-' * 80)
-            tf.logging.info('<EPOCH {}>: Start evaluating {}'.format(n + 1, FLAGS.test_data))
-            s_time = time.time()
-            results = model.evaluate(
-                input_fn=lambda: input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False, multivalue=False),
-                steps=None,  # Number of steps for which to evaluate model.
-                hooks=None,
-                checkpoint_path=None,  # If None, the latest checkpoint in model_dir is used.
-                name=None
-                )
-            tf.logging.info(
-                '<EPOCH {}>: Finish evaluation {}, take {} mins'.format(n + 1, FLAGS.test_data, elapse_time(s_time)))
-            # train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=1000)
-            # eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn)
-            # tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
+            tf.logging.info('<EPOCH {}>: Start evaluating {}'.format(n + 1, FLAGS.eval_data))
+            t0 = time.time()
+            results = model.evaluate(input_fn=lambda: lambda: Dataset().input_fn(FLAGS.eval_data, 1, FLAGS.batch_size, False),
+                                     steps=None,  # Number of steps for which to evaluate model.
+                                     hooks=None,
+                                     checkpoint_path=None,  # latest checkpoint in model_dir is used.
+                                     name=None)
+            tf.logging.info('<EPOCH {}>: Finish evaluation {}, take {} mins'.format(n + 1, FLAGS.eval_data, elapse_time(t0)))
+            print('-' * 80)
             # Display evaluation metrics
-            print('-' * 80)
             for key in sorted(results):
-                print('%s: %s' % (key, results[key]))
+                print('{}: {}'.format(key, results[key]))
+        # every epochs_per_eval test the model (use larger test dataset)
+        if (n+1) // FLAGS.epochs_per_eval == 0:
+            tf.logging.info('<EPOCH {}>: Start testing {}'.format(n + 1, FLAGS.test_data))
+            results = model.evaluate(input_fn=lambda: Dataset().input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False),
+                                     steps=None,  # Number of steps for which to evaluate model.
+                                     hooks=None,
+                                     checkpoint_path=None,  # If None, the latest checkpoint in model_dir is used.
+                                     name=None)
+            tf.logging.info('<EPOCH {}>: Finish testing {}, take {} mins'.format(n + 1, FLAGS.test_data, elapse_time(t0)))
+            print('-' * 80)
+            # Display evaluation metrics
+            for key in sorted(results):
+                print('{}: {}'.format(key, results[key]))
 
 
-# def _create_experiment_fn():
-#     """Experiment creation function."""
-#     # Get configuration from environment variables, implementation of tf.estimator.RunConfig interface.
-#     # run_config = tf.contrib.learn.RunConfig()
-#     estimator = build_estimator(FLAGS.model_dir, FLAGS.model_type)
-#     return tf.contrib.learn.Experiment(
-#         estimator=estimator,
-#         train_input_fn=lambda: input_fn(FLAGS.train_data, 1, FLAGS.batch_size, multivalue=False),
-#         eval_input_fn=lambda: input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False, multivalue=False),
-#         train_steps=1000,  # Perform this many steps of training. None, the default, means train forever.
-#         eval_steps=None  # evaluate runs until input is exhausted (or another exception is raised), or for eval_steps steps, if specified.
-#     )
+def train_and_eval():
+    print("Using Train config: {}".format(CONFIG.train))
+    print('Model type: {}'.format(FLAGS.model_type))
+    model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
+    print('Model directory: {}'.format(model_dir))
+    if not FLAGS.keep_train:
+        # Clean up the model directory if not keep training
+        shutil.rmtree(model_dir, ignore_errors=True)
+        print('Remove model directory: {}'.format(model_dir))
+    model = WideAndDeep().build_estimator(model_dir, FLAGS.model_type)
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda: Dataset().input_fn(FLAGS.train_data, 1, FLAGS.batch_size), max_steps=10000)
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda: Dataset().input_fn(FLAGS.eval_data, 1, FLAGS.batch_size, False))
+    tf.estimator.train_and_evaluate(model, train_spec, eval_spec)
 
 
 def main(unused_argv):
@@ -173,36 +147,30 @@ def main(unused_argv):
             #     sess.run(queue.dequeue())
             #     print("ps {} received worker {} done".format(task_index, i)
             # print("ps {} quitting".format(task_index))
-        else:
-            # TODO：supervisor & MonotoredTrainingSession & experiment
+        else:  # TODO：supervisor & MonotoredTrainingSession & experiment (deprecated)
+            train_and_eval()
             # Each worker only needs to contact the PS task(s) and the local worker task.
             # config = tf.ConfigProto(device_filters=[
             #     '/job:ps', '/job:worker/task:%d' % arguments.task_index])
-            with tf.device(tf.train.replica_device_setter(
-                    worker_device="/job:worker/task:%d" % task_index,
-                    cluster=cluster)):
-                train()
+            # with tf.device(tf.train.replica_device_setter(
+            #         worker_device="/job:worker/task:%d" % task_index,
+            #         cluster=cluster)):
             # e = _create_experiment_fn()
             # e.train_and_evaluate()  # call estimator's train() and evaluate() method
-            hooks = [tf.train.StopAtStepHook(last_step=10000)]
-
+            # hooks = [tf.train.StopAtStepHook(last_step=10000)]
             # with tf.train.MonitoredTrainingSession(
             #         master=server.target,
             #         is_chief=(task_index == 0),
             #         checkpoint_dir=args.model_dir,
-            #         hooks=hooks
-            # ) as mon_sess:
+            #         hooks=hooks) as mon_sess:
             #     while not mon_sess.should_stop():
             #         # mon_sess.run()
             #         classifier.fit(input_fn=train_input_fn, steps=1)
-
-    else:
+    else:  # local run
         train()
 
 
 if __name__ == '__main__':
-    # import tensorflow.contrib.eager as tfe
-    # tfe.enable_eager_execution()
     # Set to INFO for tracking training, default is WARN. ERROR for least messages
     CONFIG = Config()
     tf.logging.set_verbosity(tf.logging.INFO)
