@@ -14,6 +14,7 @@ The code is based on the TensorFlow wide and deep tutorial.
 3. support multi value feature input (multihot).
 4. support distributed tensorflow  
 4. provide some scripts to load data from hdfs.
+#TODO: multi dnn; combine cnn; wide FM
 
 ## Running the code
 ### Setup

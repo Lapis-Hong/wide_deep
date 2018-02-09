@@ -9,16 +9,16 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
-import sys
 import os
+import sys
 import time
 
 import tensorflow as tf
 
-from read_conf import Config
-from model import WideAndDeep
+from build_estimator import build_estimator
 from dataset import Dataset
-from util import elapse_time
+from lib.util import elapse_time
+from read_conf import Config
 
 CONFIG = Config().train
 parser = argparse.ArgumentParser(description='Evaluate Wide and Deep Model.')
@@ -28,7 +28,7 @@ parser.add_argument(
     help='Model checkpoint dir for evaluating.')
 
 parser.add_argument(
-    '--data_dir', type=str, default=CONFIG["data_dir"],
+    '--test_data', type=str, default=CONFIG["test_data"],
     help='Evaluating data dir.')
 
 parser.add_argument(
@@ -40,7 +40,7 @@ parser.add_argument(
     help='Number of examples per batch.')
 
 parser.add_argument(
-    '--checkpoint_path', type=str, default=CONFIG["checkpoint_path"],
+    '--checkpoint_path', type=str, default=None,
     help="Path of a specific checkpoint to evaluate. If None, the latest checkpoint in model_dir is used.")
 
 # TODO：support distributed evaluation or not ?
@@ -58,17 +58,17 @@ def main(unused_argv):
     print('Model type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
     print('Model directory: {}'.format(model_dir))
-    model = WideAndDeep().build_estimator(model_dir, FLAGS.model_type)
+    model = build_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
-    checkpoint_path = FLAGS.check_point_path or model.latest_checkpoint()
+    checkpoint_path = FLAGS.checkpoint_path or model.latest_checkpoint()
     if checkpoint_path is None:
         raise ValueError('No model checkpoint found, please check the model dir.')
     tf.logging.info('Using model checkpoint: {}'.format(checkpoint_path))
 
-    print('-' * 80)
+    print('\n')
     tf.logging.info('='*30+' START TESTING'+'='*30)
     s_time = time.time()
-    results = model.evaluate(input_fn=lambda: Dataset().input_fn(FLAGS.data_dir, 1, FLAGS.batch_size, False),
+    results = model.evaluate(input_fn=lambda: Dataset().input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False),
                              steps=None,  # Number of steps for which to evaluate model.
                              hooks=None,
                              checkpoint_path=FLAGS.checkpoint_path,  # If None, the latest checkpoint is used.

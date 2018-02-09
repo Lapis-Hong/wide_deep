@@ -8,17 +8,17 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import argparse
 import os
 import sys
 import time
 
-import argparse
 import tensorflow as tf
 
-from read_conf import Config
-from model import WideAndDeep
+from build_estimator import build_estimator
 from dataset import Dataset
-from util import elapse_time
+from lib.util import elapse_time
+from read_conf import Config
 
 CONFIG = Config().train
 parser = argparse.ArgumentParser(description='Evaluate Wide and Deep Model.')
@@ -28,7 +28,7 @@ parser.add_argument(
     help='Model checkpoint dir for evaluating.')
 
 parser.add_argument(
-    '--data_dir', type=str, default=CONFIG["data_dir"],
+    '--data_dir', type=str,
     help='Evaluating data dir.')
 
 parser.add_argument(
@@ -54,10 +54,10 @@ def main(unused_argv):
     print('Model type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
     print('Model directory: {}'.format(model_dir))
-    model = WideAndDeep().build_estimator(model_dir, FLAGS.model_type)
+    model = build_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
 
-    checkpoint_path = FLAGS.check_point_path or model.latest_checkpoint()
+    checkpoint_path = FLAGS.checkpoint_path or model.latest_checkpoint()
     if checkpoint_path is None:
         raise ValueError('No model checkpoint found, please check the model dir.')
     tf.logging.info('Using model checkpoint: {}'.format(checkpoint_path))
@@ -69,12 +69,12 @@ def main(unused_argv):
                                 predict_keys=None,
                                 hooks=None,
                                 checkpoint_path=checkpoint_path)  # defaults None to use latest_checkpoint
-    tf.logging.info('='*30+'FINISH PREDICTION, TAKE {}'.format(elapse_time(t0))+'='*30)
+    tf.logging.info('='*30+'FINISH PREDICTION, TAKE {} mins'.format(elapse_time(t0))+'='*30)
 
-    for pred_dict, expec in zip(predictions):
+    for pred_dict in predictions:  # dict{probabilities, classes, class_ids}
         class_id = pred_dict['class_ids'][0]
         probability = pred_dict['probabilities'][class_id]
-        print('\nPrediction is "{}" ({:.1f}%), expected "{}"'.format(class_id, 100 * probability, expec))
+        print('\nPrediction is "{}" ({:.1f}%), expected "{}"'.format(class_id, 100 * probability))
 
 if __name__ == '__main__':
     # Set to INFO for tracking training, default is WARN. ERROR for least messages

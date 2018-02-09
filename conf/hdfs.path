@@ -1,0 +1,13 @@
+# https://www.tensorflow.org/deploy/hadoop#hdfs
+# TensorFlow on Hadoop Configuration Path.
+
+# CLASSPATH=$($HADOOP_HDFS_HOME/bin/hadoop classpath --glob) python train.py
+
+set -x
+
+export JAVA_HOME=/home/appops/jdk/default
+export HADOOP_HOME=/home/appops/hadoop
+# . $HADOOP_HOME/libexec/hadoop-config.sh
+export HADOOP_HDFS_HOME=/home/appops/hadoop
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$JAVA_HOME/jre/lib/amd64/server
+export CLASSPATH=$($HADOOP_HDFS_HOME/bin/hadoop classpath --glob)

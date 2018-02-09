@@ -13,11 +13,12 @@ train:
   eval_data: ./data/eval
   test_data: ./data/eval/test
   train_epochs: 5
-  batch_size: 256
+  batch_size: 32
   keep_train: 0
+  # dataset
+  multivalue: 1
   shuffle_buffer_size: 2000000
-  # optional for test
-  checkpoint_path:
+  num_parallel_calls: 48
 
 
 # Distribution Parameters

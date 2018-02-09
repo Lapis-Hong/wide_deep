@@ -4,10 +4,10 @@ from __future__ import print_function
 
 import os
 
+import input_fn
 import tensorflow as tf
 
-import input_fn
-import model as wide_deep
+from lib import model as wide_deep
 from read_conf import Config
 
 TEST_CSV = os.path.join(os.path.dirname(__file__), 'data/test/test2')

@@ -9,17 +9,17 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
+import os
 import shutil
 import sys
 import time
-import os
 
 import tensorflow as tf
 
-from read_conf import Config
-from model import WideAndDeep
+from build_estimator import build_estimator_test
 from dataset import Dataset
-from util import elapse_time, list_files
+from lib.util import elapse_time, list_files
+from read_conf import Config
 
 CONFIG = Config().train
 parser = argparse.ArgumentParser(description='Train Wide and Deep Model.')
@@ -51,25 +51,14 @@ parser.add_argument(
 parser.add_argument(
     '--keep_train', type=int, default=CONFIG["keep_train"],
     help='Whether to keep training on previous trained model.')
-parser.add_argument(
-    '--checkpoint_path', type=int, default=CONFIG["checkpoint_path"],
-    help='Model checkpoint path for testing.')
+# parser.add_argument(
+#     '--checkpoint_path', type=int, default=CONFIG["checkpoint_path"],
+#     help='Model checkpoint path for testing.')
 
 
-def train():
-    print("Using Train config: {}".format(CONFIG.train))
-    print('Model type: {}'.format(FLAGS.model_type))
-    model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
-    print('Model directory: {}'.format(model_dir))
-    if not FLAGS.keep_train:
-        # Clean up the model directory if not keep training
-        shutil.rmtree(model_dir, ignore_errors=True)
-        print('Remove model directory: {}'.format(model_dir))
-    model = WideAndDeep().build_estimator(model_dir, FLAGS.model_type)
-    tf.logging.info('Build estimator: {}'.format(model))
-
+def train(model):
     for n in range(FLAGS.train_epochs):
-        tf.logging.info('\n=' * 30 + ' START EPOCH {} '.format(n + 1) + '=' * 30 + '\n')
+        tf.logging.info('=' * 30 + ' START EPOCH {} '.format(n + 1) + '=' * 30 + '\n')
         train_data_list = list_files(FLAGS.train_data)  # dir to file list
         for f in train_data_list:
             t0 = time.time()
@@ -83,7 +72,7 @@ def train():
             print('-' * 80)
             tf.logging.info('<EPOCH {}>: Start evaluating {}'.format(n + 1, FLAGS.eval_data))
             t0 = time.time()
-            results = model.evaluate(input_fn=lambda: lambda: Dataset().input_fn(FLAGS.eval_data, 1, FLAGS.batch_size, False),
+            results = model.evaluate(input_fn=lambda: Dataset().input_fn(FLAGS.eval_data, 1, FLAGS.batch_size, False),
                                      steps=None,  # Number of steps for which to evaluate model.
                                      hooks=None,
                                      checkpoint_path=None,  # latest checkpoint in model_dir is used.
@@ -108,16 +97,7 @@ def train():
                 print('{}: {}'.format(key, results[key]))
 
 
-def train_and_eval():
-    print("Using Train config: {}".format(CONFIG.train))
-    print('Model type: {}'.format(FLAGS.model_type))
-    model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
-    print('Model directory: {}'.format(model_dir))
-    if not FLAGS.keep_train:
-        # Clean up the model directory if not keep training
-        shutil.rmtree(model_dir, ignore_errors=True)
-        print('Remove model directory: {}'.format(model_dir))
-    model = WideAndDeep().build_estimator(model_dir, FLAGS.model_type)
+def train_and_eval(model):
     train_spec = tf.estimator.TrainSpec(input_fn=lambda: Dataset().input_fn(FLAGS.train_data, 1, FLAGS.batch_size), max_steps=10000)
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda: Dataset().input_fn(FLAGS.eval_data, 1, FLAGS.batch_size, False))
     tf.estimator.train_and_evaluate(model, train_spec, eval_spec)
@@ -126,6 +106,16 @@ def train_and_eval():
 def main(unused_argv):
     print("Using TensorFlow version %s" % tf.__version__)
     assert "1.4" <= tf.__version__, "Need TensorFlow r1.4 or later."
+    print("Using Train config: {}".format(CONFIG.train))
+    print('Model type: {}'.format(FLAGS.model_type))
+    model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
+    print('Model directory: {}'.format(model_dir))
+    if not FLAGS.keep_train:
+        # Clean up the model directory if not keep training
+        shutil.rmtree(model_dir, ignore_errors=True)
+        print('Remove model directory: {}'.format(model_dir))
+    model = build_estimator_test(model_dir, FLAGS.model_type)
+    tf.logging.info('Build estimator: {}'.format(model))
 
     if CONFIG.distribution["is_distribution"]:
         print("Using PID: {}".format(os.getpid()))
@@ -148,7 +138,8 @@ def main(unused_argv):
             #     print("ps {} received worker {} done".format(task_index, i)
             # print("ps {} quitting".format(task_index))
         else:  # TODO：supervisor & MonotoredTrainingSession & experiment (deprecated)
-            train_and_eval()
+            train(model)
+            # train_and_eval(model)
             # Each worker only needs to contact the PS task(s) and the local worker task.
             # config = tf.ConfigProto(device_filters=[
             #     '/job:ps', '/job:worker/task:%d' % arguments.task_index])
@@ -167,7 +158,7 @@ def main(unused_argv):
             #         # mon_sess.run()
             #         classifier.fit(input_fn=train_input_fn, steps=1)
     else:  # local run
-        train()
+        train(model)
 
 
 if __name__ == '__main__':

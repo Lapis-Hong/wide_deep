@@ -5,7 +5,7 @@
 import os
 import yaml
 
-
+BASE_DIR = os.path.join(os.path.abspath('.'), 'conf')
 SCHEMA_CONF_FILE = 'schema.yaml'
 FEATURE_CONF_FILE = 'feature.yaml'
 CROSS_FEATURE_CONF_FILE = 'cross_feature.yaml'
@@ -14,7 +14,7 @@ TRAIN_CONF_FILE = 'train.yaml'
 
 class Config(object):
     """Config class 
-    Class attributes: config, train, test, distribution, model, runconfig
+    Class attributes: config, train, distribution, model, runconfig
     Class methods: read_cross_feature_conf, read_feature_conf, get_feature_name
     """
     def __init__(self,
@@ -22,10 +22,10 @@ class Config(object):
                  feature_conf_file=FEATURE_CONF_FILE,
                  cross_feature_conf_file=CROSS_FEATURE_CONF_FILE,
                  train_conf_file=TRAIN_CONF_FILE):
-        self._schema_conf_file = os.path.join('conf', schema_conf_file)
-        self._feature_conf_file = os.path.join('conf', feature_conf_file)
-        self._cross_feature_conf_file = os.path.join('conf', cross_feature_conf_file)
-        self._train_conf_file = os.path.join('conf', train_conf_file)
+        self._schema_conf_file = os.path.join(BASE_DIR, schema_conf_file)
+        self._feature_conf_file = os.path.join(BASE_DIR, feature_conf_file)
+        self._cross_feature_conf_file = os.path.join(BASE_DIR, cross_feature_conf_file)
+        self._train_conf_file = os.path.join(BASE_DIR, train_conf_file)
         # self.feature_conf = self.read_feature_conf()
 
     def _read_schema(self):
@@ -38,17 +38,19 @@ class Config(object):
         trans = kwargs["transform"]
         param = kwargs["parameter"]
         if type_ is None or trans is None or param is None:
-            raise ValueError("All attributes are required in feature conf, found empty value for feature `{}`".format(feature))
+            raise ValueError("All attributes are required in feature conf, "
+                             "found empty value for feature `{}`".format(feature))
         if feature not in valid_feature_name:
             raise ValueError("Invalid feature name `{}` in feature conf, "
                              "must be consistent with schema conf".format(feature))
-        assert type_ in {'category', 'continuous'}, \
-            "Invalid type `{}` for feature `{}` in feature conf, must be 'category' or 'continuous'".format(type_, feature)
+        assert type_ in {'category', 'continuous'}, (
+            "Invalid type `{}` for feature `{}` in feature conf, "
+            "must be 'category' or 'continuous'".format(type_, feature))
         # check transform and parameter
         if type_ == 'category':
-            assert trans in {'hash_bucket', 'identity', 'vocab'}, \
-                "Invalid transform `{}` for feature `{}` in feature conf, " \
-                "must be one of `hash_bucket`, `vocab`, `identity`.".format(trans, feature)
+            assert trans in {'hash_bucket', 'identity', 'vocab'}, (
+                "Invalid transform `{}` for feature `{}` in feature conf, "
+                "must be one of `hash_bucket`, `vocab`, `identity`.".format(trans, feature))
             if trans == 'hash_bucket' or trans == 'identity':
                 if not isinstance(param, int):
                     raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
@@ -76,20 +78,21 @@ class Config(object):
         features_list = [f.strip() for f in features.split('&')]
         hash_bucket_size = kwargs["hash_bucket_size"]
         is_deep = kwargs["is_deep"]
-        assert len(features_list) > 1, \
-            'Invalid cross feature name `{}` in cross feature conf,  at least 2 features'.format(features)
+        assert len(features_list) > 1, (
+            'Invalid cross feature name `{}` in cross feature conf,'
+            'at least 2 features'.format(features))
         for f in features_list:
             if f not in valid_feature_name:
                 raise ValueError("Invalid cross feature name `{}` in cross feature conf, "
                                  "must be consistent with feature conf".format(features))
         if hash_bucket_size:
-            assert isinstance(hash_bucket_size, (int, float)), \
-                'Invalid hash_bucket_size `{}` for features `{}` ' \
-                'in cross feature conf, expected int or float'.format(hash_bucket_size, features)
+            assert isinstance(hash_bucket_size, (int, float)), (
+                'Invalid hash_bucket_size `{}` for features `{}` in cross feature conf, ' 
+                'expected int or float'.format(hash_bucket_size, features))
         if is_deep:
-            assert is_deep in {0, 1}, \
-                'Invalid is_deep `{}` for features `{}`, ' \
-                'expected 0 or 1.'.format(is_deep, features)
+            assert is_deep in {0, 1}, (
+                'Invalid is_deep `{}` for features `{}`, ' 
+                'expected 0 or 1.'.format(is_deep, features))
 
     def read_feature_conf(self):
         with open(self._feature_conf_file) as f:
@@ -166,7 +169,6 @@ def _test():
     """test for Config methods"""
     print('\nTrain config:')
     print(config.config)
-    print(Config.config)
     print(config.train)
     print(config.runconfig)
     print(config.model)
