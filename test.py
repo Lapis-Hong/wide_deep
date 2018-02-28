@@ -40,7 +40,7 @@ parser.add_argument(
     help='Number of examples per batch.')
 
 parser.add_argument(
-    '--checkpoint_path', type=str, default=None,
+    '--checkpoint_path', type=str, default=CONFIG["checkpoint_path"],
     help="Path of a specific checkpoint to evaluate. If None, the latest checkpoint in model_dir is used.")
 
 # TODO：support distributed evaluation or not ?

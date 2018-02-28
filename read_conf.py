@@ -5,11 +5,13 @@
 import os
 import yaml
 
-BASE_DIR = os.path.join(os.path.abspath('.'), 'conf')
+BASE_DIR = os.path.join(os.path.dirname(__file__), 'conf')
 SCHEMA_CONF_FILE = 'schema.yaml'
+DATA_PROCESS_CONF_FILE = 'data_process.yaml'
 FEATURE_CONF_FILE = 'feature.yaml'
 CROSS_FEATURE_CONF_FILE = 'cross_feature.yaml'
 TRAIN_CONF_FILE = 'train.yaml'
+
 
 
 class Config(object):
@@ -19,18 +21,24 @@ class Config(object):
     """
     def __init__(self,
                  schema_conf_file=SCHEMA_CONF_FILE,
+                 data_process_conf_file=DATA_PROCESS_CONF_FILE,
                  feature_conf_file=FEATURE_CONF_FILE,
                  cross_feature_conf_file=CROSS_FEATURE_CONF_FILE,
                  train_conf_file=TRAIN_CONF_FILE):
         self._schema_conf_file = os.path.join(BASE_DIR, schema_conf_file)
+        self._data_process_conf_file = os.path.join(BASE_DIR, data_process_conf_file)
         self._feature_conf_file = os.path.join(BASE_DIR, feature_conf_file)
         self._cross_feature_conf_file = os.path.join(BASE_DIR, cross_feature_conf_file)
         self._train_conf_file = os.path.join(BASE_DIR, train_conf_file)
         # self.feature_conf = self.read_feature_conf()
 
-    def _read_schema(self):
+    def read_schema(self):
         with open(self._schema_conf_file) as f:
-            return [v.lower() for v in yaml.load(f).values()]
+            return {k: v.lower() for k, v in yaml.load(f).items()}
+
+    def read_data_process_conf(self):
+        with open(self._data_process_conf_file) as f:
+            return yaml.load(f)
 
     @staticmethod
     def _check_feature_conf(feature, valid_feature_name, **kwargs):
@@ -97,7 +105,7 @@ class Config(object):
     def read_feature_conf(self):
         with open(self._feature_conf_file) as f:
             feature_conf = yaml.load(f)
-            valid_feature_name = self._read_schema()[1:]
+            valid_feature_name = self.read_schema().values()
             for feature, conf in feature_conf.items():
                 self._check_feature_conf(feature.lower(), valid_feature_name, **conf)
             return feature_conf
@@ -150,12 +158,14 @@ class Config(object):
         Return: feature name list
         """
         feature_conf_dic = self.read_feature_conf()
+        feature_list = self.read_schema().values()
+        feature_list.remove('clk')
         if feature_type == 'all':
-            return self._read_schema()[1:]
+            return feature_list
         elif feature_type == 'used':
             return feature_conf_dic.keys()
         elif feature_type == 'unused':
-            return set(self._read_schema()[1:]) - set(feature_conf_dic.keys())
+            return set(feature_list) - set(feature_conf_dic.keys())
         elif feature_type == 'category':
             return [feature for feature, conf in feature_conf_dic.items() if conf['type'] == 'category']
         elif feature_type == 'continuous':

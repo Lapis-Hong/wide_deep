@@ -13,8 +13,10 @@ train:
   eval_data: ./data/eval
   test_data: ./data/eval/test
   train_epochs: 5
+  epochs_per_eval: 1
   batch_size: 32
   keep_train: 0
+  checkpoint_path:
   # dataset
   multivalue: 1
   shuffle_buffer_size: 2000000

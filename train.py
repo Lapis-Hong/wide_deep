@@ -34,7 +34,7 @@ parser.add_argument(
     '--train_epochs', type=int, default=CONFIG["train_epochs"],
     help='Number of training epochs.')
 parser.add_argument(
-    '--epochs_per_eval', type=int, default=1,
+    '--epochs_per_eval', type=int, default=CONFIG["epochs_per_eval"],
     help='The number of training epochs to run between evaluations.')
 parser.add_argument(
     '--batch_size', type=int, default=CONFIG["batch_size"],
@@ -83,7 +83,7 @@ def train(model):
             for key in sorted(results):
                 print('{}: {}'.format(key, results[key]))
         # every epochs_per_eval test the model (use larger test dataset)
-        if (n+1) // FLAGS.epochs_per_eval == 0:
+        if (n+1) % FLAGS.epochs_per_eval == 0:
             tf.logging.info('<EPOCH {}>: Start testing {}'.format(n + 1, FLAGS.test_data))
             results = model.evaluate(input_fn=lambda: Dataset().input_fn(FLAGS.test_data, 1, FLAGS.batch_size, False),
                                      steps=None,  # Number of steps for which to evaluate model.
