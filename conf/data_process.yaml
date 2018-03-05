@@ -1,21 +1,13 @@
 # Raw Data Process Configuration in yaml
 # Using this config for data preprocess using Spark
-# TODO: add more
-
-# Spark config
-spark:
-  app_name: wide_deep
-  driver_memory: 20g
-  executor_memory: 20g
-  driver_cores: 48
-  cores_max: 108
-
 
 # Hadoop data directory
 input_hdfs_dir: /user/algo/algo_fea/v1/feature_joiner
 output_hdfs_dir: /user/algo/user/dinghongquan/wide_deep
 
 # Data Process Parameters
-feature_index_list: [6, 7, 8]  # category feature index that used to generate new continuous feature
+# category feature index that used to generate new continuous feature
+# set empty to not generate continuous features
+category_feature_index_list: #[6, 7, 8]
 date: 20180220
-downsampling_keep_ratio: 0.1
+downsampling_keep_ratio: 0.01

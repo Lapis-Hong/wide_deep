@@ -28,7 +28,7 @@ function load_data() {
 		dt=$1
 		input_path=${from_hdfs_dir}/${dt}
         output_path=${to_local_dir}/${dt}
-		echo "Start loading data from ${input_path}."
+		echo "Start loading data from hdfs: ${input_path}."
         #sudo -iu appops hadoop fs -text ${input_path}/part* > ${output_path}
         sudo -iu appops hadoop fs -getmerge ${input_path}/part* ${output_path}
         sudo -iu appops chmod 666 ${output_path}

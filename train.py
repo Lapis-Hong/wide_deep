@@ -16,7 +16,7 @@ import time
 
 import tensorflow as tf
 
-from build_estimator import build_estimator_test
+from build_estimator import build_estimator
 from dataset import Dataset
 from lib.util import elapse_time, list_files
 from read_conf import Config
@@ -114,7 +114,7 @@ def main(unused_argv):
         # Clean up the model directory if not keep training
         shutil.rmtree(model_dir, ignore_errors=True)
         print('Remove model directory: {}'.format(model_dir))
-    model = build_estimator_test(model_dir, FLAGS.model_type)
+    model = build_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
 
     if CONFIG.distribution["is_distribution"]:

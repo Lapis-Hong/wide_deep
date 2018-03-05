@@ -4,9 +4,12 @@
 # @Date  : 2018/2/27
 """Using Spark to do Raw Data Preprocess
 Raw data --> Processed raw data
+Data size is about 60G per day. 300M per part (200 part)
+If use 0.01 down-sampling, use 2 part to avoid too much small partitions
+Performance: 1 min one day one feature
 
 Details:
-    1. generate new continuous features (from category featrues)
+    1. generate new continuous features from category featrues (optional)
         for each category, calculate target ratio under certain period as a new continuous feature
         here we use past 1-day, 7-days, 30-days as our periods
         for example:  
@@ -36,10 +39,6 @@ from pyspark.sql import SparkSession
 from read_conf import Config
 from lib.util import timer
 
-CONF = Config().read_data_process_conf()
-SPARK_CONF = CONF['spark']
-SCHEMA = Config().read_schema()
-
 
 def gen_dates(start=None, days=1, fmt='%Y%m%d'):
     """generate date list before given date"""
@@ -52,115 +51,81 @@ def get_today():
     return date.today().strftime('%Y%m%d')  # default %Y-%m-%d fmt
 
 
-@timer('Successfully process the raw data!')
-def local_data_preprocess(inpath, outpath):
-    """Use spark to process local data demo.
-    Args:
-        inpath: local data path
-        outpath: local processed data path
-    """
-    feature_index_list = CONF['feature_index_list']
-    conf = SparkConf().setAppName(SPARK_CONF['app_name']). \
-        set('spark.executor.memory', SPARK_CONF['executor_memory']).set('spark.driver.memory', SPARK_CONF['driver_memory']). \
-        set('spark.driver.cores', SPARK_CONF['driver_cores']).set('spark.cores.max', SPARK_CONF['cores_max'])
-    sc = SparkContext(conf=conf)
-    ss = SparkSession.builder.getOrCreate()
-    rdd = sc.textFile(inpath).map(lambda x: x.strip().split('\t'))
-    colnames = SCHEMA.values()
-    df = ss.createDataFrame(rdd, colnames)
-    # print(df.describe())
-
-    for i in feature_index_list:
-        # first filter target 2 columns, then groupByKey and calculate the mean of clk (ratio of click)
-        # each rdd pair like [(u'150000', 0.0), (u'220000', 0.0), (u'130000', 0.00303951367781155)...]
-        rdd2 = rdd.map(lambda x: (x[i-1], int(x[0]))).groupByKey().mapValues(lambda x: float(sum(x))/len(x))
-        df2 = ss.createDataFrame(rdd2, ('k2', SCHEMA[i]+'_rate'))
-        df = df.join(df2, df[SCHEMA[i]] == df2['k2'], how='left_outer')
-        df = df.drop('k2')
-    # down sampling
-    df = df.sampleBy('clk', fractions={'0': 0.1, '1': 1}, seed=0)  # stratified sample without replacement
-
-    # df.rdd.map(lambda x: ",".join(map(str, x))).coalesce(1).saveAsTextFile(outpath)
-    df.repartition(1).write.mode('overwrite').csv(outpath, sep='\t')
-    sc.stop()
-    ss.stop()
+def exist_hdfs_path(path):
+    """check hdfs path exists or not, return bool"""
+    if subprocess.call('hadoop fs -test -e {}'.format(path), shell=True) == 0:
+        return True
+    else:
+        return False
 
 
 @timer('Successfully process the raw data!')
-def hdfs_data_preprocess():
+def hdfs_data_preprocess(inpath, outpath):
     """Use spark to process hdfs data and write result into hdfs
     """
-    feature_index_list = CONF['feature_index_list']
-    date = CONF['date']
-    keep_prob = CONF['downsampling_keep_ratio']
-
-    conf = SparkConf().setAppName(SPARK_CONF['app_name']). \
-        set('spark.executor.memory', SPARK_CONF['executor_memory']).set('spark.driver.memory', SPARK_CONF['driver_memory']). \
-        set('spark.driver.cores', SPARK_CONF['driver_cores']).set('spark.cores.max', SPARK_CONF['cores_max']).setMaster('yarn')
+    conf = SparkConf().setMaster("yarn")
     sc = SparkContext(conf=conf)
     ss = SparkSession.builder.getOrCreate()
+    # generate 1-day, 7-days, 30-days rdd list
+    rdd_list = [sc.textFile(inpath[0]), sc.textFile(','.join(inpath[:7])), sc.textFile(','.join(inpath))]
 
-    if date is None:
-        date = get_today()
-    inpaths = [os.path.join(SPARK_CONF['input_hdfs_dir'], d) for d in gen_dates(date, 30)]
-    outpath = os.path.join(SPARK_CONF['output_hdfs_dir'], date)
-
-    # check path
-    # hadoop output dir can not be exists, must be removed
-    subprocess.call('hadoop fs -rm -r {0}'.format(outpath), shell=True)
-
-    # 1-day period
-    rdd = sc.textFile(inpaths[0]).map(lambda x: x.strip().split('\t'))
-    colnames = SCHEMA.values()
-    df = ss.createDataFrame(rdd, colnames)
-    for i in feature_index_list:
-        # first filter target 2 columns, then groupByKey and calculate the mean of clk (ratio of click)
-        # each rdd pair like [(u'150000', 0.0), (u'220000', 0.0), (u'130000', 0.00303951367781155)...]
-        rdd2 = rdd.map(lambda x: (x[i-1], int(x[0]))).groupByKey().mapValues(lambda x: float(sum(x))/len(x))
-        df2 = ss.createDataFrame(rdd2, ('k2', SCHEMA[i]+'_rate_1'))
-        df = df.join(df2, df[SCHEMA[i]] == df2['k2'], how='left_outer')
-        df = df.drop('k2')
-        print('1-day feature `{}` finished.'.format(SCHEMA[i]))
-
-    # 7-days period
-    for p in inpaths[1:]:
-        rdd.union(sc.textFile(p).map(lambda x: x.strip().split('\t')))
-
-    for i in feature_index_list:
-        rdd2 = rdd.map(lambda x: (x[i - 1], int(x[0]))).groupByKey().mapValues(lambda x: float(sum(x)) / len(x))
-        df2 = ss.createDataFrame(rdd2, ('k2', SCHEMA[i] + '_rate_7'))
-        df = df.join(df2, df[SCHEMA[i]] == df2['k2'], how='left_outer')
-        df = df.drop('k2')
-        print('7-day feature `{}` finished.'.format(SCHEMA[i]))
-
-    # 30-days period
-    for p in inpaths[7:]:
-        rdd.union(sc.textFile(p).map(lambda x: x.strip().split('\t')))
-
-    for i in feature_index_list:
-        rdd2 = rdd.map(lambda x: (x[i - 1], int(x[0]))).groupByKey().mapValues(lambda x: float(sum(x)) / len(x))
-        df2 = ss.createDataFrame(rdd2, ('k2', SCHEMA[i] + '_rate_30'))
-        df = df.join(df2, df[SCHEMA[i]] == df2['k2'], how='left_outer')
-        df = df.drop('k2')
-        print('30-day feature `{}` finished.'.format(SCHEMA[i]))
-
+    data = rdd_list[0].map(lambda x: x.strip().split('\t'))
+    if feature_index_list:  # if feature_index_l
+        for rdd in rdd_list:
+            for i in feature_index_list:
+                # pair rdd (k, v) -> (category_f, clk)
+                rdd = rdd.map(lambda x: x.strip().split('\t')).map(lambda x: (x[i-1], int(x[0])))
+                # calculate the mean value of pair rdd by key
+                # result like [(u'150000', 0.0), (u'220000', 0.0), (u'130000', 0.00303951367781155)...]
+                # mehthod 1: reduceByKey, using reduceByKey much faster than groupByKey
+                pair_rdd = rdd.mapValues(lambda v: (v, 1))\
+                    .reduceByKey(lambda a, b: (a[0] + b[0], a[1] + b[1])).mapValues(lambda v: float(v[0]) / v[1])
+                # method 2:  groupByKey
+                # pair_rdd = rdd.map(lambda x: (x[i-1], int(x[0]))).groupByKey().mapValues(
+                #    lambda x: float(sum(x)) / len(x))
+                # method 3: countByKey + reduceByKey
+                # countsByKey = sc.broadcast(rdd.countByKey())  # SAMPLE OUTPUT of countsByKey.value
+                # from operator import add
+                # pair_rdd = rdd.reduceByKey(add).map(lambda x: (x[0], float(x[1]) / countsByKey.value[x[0]]))
+                # method 4: aggregateByKey
+                # pair_rdd = rdd.aggregateByKey((0, 0), lambda a, b: (a[0]+b, a[1]+1), lambda a,b: (a[0]+b[0], a[1]+b[1]))
+                #    .mapValues(lambda v: float(v[0])/v[1])
+                dic = pair_rdd.collectAsMap()
+                # do not use append, modify inplace, return None
+                # must persist(), or it will all use the last same dic
+                # data = data.map(lambda x: x+[str(dic[x[i-1]])]).persist()
+                b = sc.broadcast(dic)
+                data = data.map(lambda x: x + [str(b.value[x[i - 1]])]).persist()
+                # b.unpersist()
     # down sampling
-    df = df.sampleBy('clk', fractions={'0': keep_prob, '1': 1}, seed=0)
-    print('down sampling finished.')
-    # data.saveAsTextFile(outpath, 'org.apache.hadoop.io.compress.GzipCodec')  # can not use snappy
-    # data.repartition(1).saveAsTextFile(outfile)  # can be merged into 1 file, but for big data, it would be slow
-    # df.write.mode('overwrite').save(outpath)
-    # df.rdd.map(lambda x: ",".join(map(str, x))).coalesce(1).saveAsTextFile(outpath)
-    df.repartition(200).write.csv(outpath, sep='\t')
+    data = data.map(lambda x: (x[0], x)).sampleByKey('clk', fractions={'0': keep_prob, '1': 1}, seed=0)
+    # rdd.saveAsTextFile(outpath, 'org.apache.hadoop.io.compress.GzipCodec')  # can not use snappy
+    # merged into 1 file, but slow for big data coalesce(1)
+    data.map(lambda x: "\t".join(x)).repartition(2).saveAsTextFile(outpath)
     sc.stop()
     ss.stop()
 
 
 if __name__ == '__main__':
-    # local path test
-    inpath = 'file:////Users/lapis-hong/Documents/NetEase/wide_deep/data/train'
-    outpath = 'file:////Users/lapis-hong/Documents/NetEase/wide_deep/data/spark'
-    local_data_preprocess(inpath, outpath)
-    #hdfs_data_preprocess()
+    CONF = Config().read_data_process_conf()
+    SCHEMA = Config().read_schema()
+
+    feature_index_list = CONF['category_feature_index_list']
+    date = str(CONF['date'])
+    keep_prob = CONF['downsampling_keep_ratio']
+
+    if date is None:
+        date = get_today()
+    inpath = [os.path.join(CONF['input_hdfs_dir'], d) for d in gen_dates(date, 30)]
+    outpath = os.path.join(CONF['output_hdfs_dir'], date)
+    # check path, hadoop output dir can not be exists, must be removed
+    for p in inpath:
+        if not exist_hdfs_path(p):
+            raise IOError('Hdfs path: {} not exsits'.format(p))
+    if exist_hdfs_path(outpath):
+        subprocess.call('hadoop fs -rm -r {}'.format(outpath), shell=True)
+        print('Remove hdfs path: {}'.format(outpath))
+
+    hdfs_data_preprocess(inpath, outpath)
 
 
