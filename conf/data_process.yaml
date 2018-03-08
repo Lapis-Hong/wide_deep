@@ -1,5 +1,7 @@
-# Raw Data Process Configuration in yaml
-# Using this config for data preprocess using Spark
+# Raw Data Process Configuration
+
+# Using this config for data preprocess with Spark
+# Scripts directory: wide_deep/lib/spark
 
 # Hadoop data directory
 input_hdfs_dir: /user/algo/algo_fea/v1/feature_joiner

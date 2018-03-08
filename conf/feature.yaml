@@ -1,31 +1,46 @@
 # Feature Configuration
 
-# Each feature consists 3 attributes `type`, `transform`, `parameter`, all attributes are required.
-# 1. feature: feature name, must in schema.yaml
+# Using tf.feature_column API.
+# see https://www.tensorflow.org/api_docs/python/tf/feature_column
+
+# Each feature consists 3 attributes `type`, `transform`, `parameter`, all attributes are required (except mean & std).
+# 1. feature: feature name, must in schema.yaml.
 # 2. type: feature type,  'category' or 'continuous'.
-# 3. transform: determine feature transform in tensorflow
-#    (1) type: category, then transform is one of {'hash_bucket', 'vocab', 'identity'}
+# 3. transform: determine feature transform in tensorflow.
+#    (1) type: category
+#         allowed transform set {'hash_bucket', 'vocab', 'identity'}
 #         transform: hash_bucket  ==> tf.feature.categorical_column_with_hash_bucket
 #         transform: vocab        ==> tf.feature.categorical_column_with_vocabulary_list
 #         transform: identity     ==> tf. feature.categorical_column_with_identity
-#    (2) type: continuous, then transform is one of {'numeric', 'discretize'}
+#    (2) type: continuous,
+#         allowed transform set {'numeric', 'discretize'}
 #         transform: numeric      ==> tf.feature_column.numeric_column
 #         transform: discretize   ==> tf.feature_column.bucketized_column(tf.feature_column.numeric_column())
-# 4. parameter: main parameter for each transform, see details in tf.feature_column
+# 4. parameter: main parameter for each transform, see details in tf.feature_column.
 #        transform          parameter
 #        hash_bucket   ==>  hash_bucket_size  # int
 #        vocab         ==>  vocabulary_list   # list
 #        identity      ==>  num_buckets       # int
-#        numeric       ==>  None              # no use
-#        discretize    ==>  boundaries        # list
+#        numeric       ==>  mean              # real value
+#                           std               # positive value
+#        discretize    ==>  mean              # real value
+#                           std               # positive value
+#                           boundaries        # list
 
 # Set continuous feature transform 'discretize' to  bucketized to wide input.
-# Set unused features by using symbol `#` ahead of the lines. All listed features are used in model.
+# Set unused features by using symbol `#` ahead of the lines.
+# All listed features are used in model.
+
 # Note:
-#   if category size=1000, how much should hash_bucket_size be ?
-#   larger require more space and complexity, but smaller cause more collision
-#   here use the strategy that for low sparsity category, set 3-5times hash_bucket_size to reduce collision
-#   for high sparsity category, set 1 times hash_bucket_size.
+#   An interesting discovery is that randomly chose N number a_i between 1~N, i=1,...N
+#     let b_i = a_i % N, the distinct b_i from all N number is about 0.633.
+#     in other words, a random hash func chose N as hash_bucket_size collision rate is 0.633.
+#   Recommend `hash_bucket_size` to be 2~3*category size.
+#     larger `hash_bucket_size` require more memory and complexity, but smaller cause more collision
+#   Here use the strategy that
+#     for low sparsity category, set `hash_bucket_size` 3~4*category size to reduce collision
+#     for high sparsity category, set 1.5~2*category size to save memory.
+
 
 adplan_id:
   type: category
@@ -232,17 +247,26 @@ industry_level2_id:
 longitude:
   type: continuous
   transform: discretize
-  parameter: [90,95,100,105,110,115,120,125,130]
+  parameter:
+    mean:
+    std:
+    boundaries: [90,95,100,105,110,115,120,125,130]
 
 latitude:
   type: continuous
   transform: discretize
-  parameter: [20,25,30,35,40,45,50]
+  parameter:
+    mean:
+    std:
+    boundaries: [20,25,30,35,40,45,50]
 
 age:
   type: continuous
   transform: discretize
-  parameter: [15,20,25,30,35,40,45,50,55,60,65]
+  parameter:
+    mean:
+    std:
+    boundaries: [15,20,25,30,35,40,45,50,55,60,65]
 
 #Request_id;category;hash_bucket;500000
 #account_id;category;hash_bucket;1000

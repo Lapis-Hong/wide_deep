@@ -1,7 +1,8 @@
-# Train Configuration in yaml
+# Train Configuration
+
 # Note this configuration set defaults to argparser.
-# Same params can be overrided by using command line.
-# For example, `python train.py --model_dir ./model_new`
+# Same params can be overwrite by using command line.
+#   For example, `python train.py --model_dir ./model_new`
 # For optional parameter, set empty to be defaults None
 
 
@@ -12,6 +13,10 @@ train:
   train_data: ./data/train
   eval_data: ./data/eval
   test_data: ./data/eval/test
+  # optional, set empty to not use
+  image_train_data: ./data/iamge/train.tfrecords
+  image_eval_data:
+  image_test_data:
   train_epochs: 5
   epochs_per_eval: 1
   batch_size: 32
@@ -34,19 +39,6 @@ distribution:
     worker: ['10.120.180.213:3333']  # ['10.120.180.213:3333', '10.120.180.214:3333', '10.120.180.215:3333']
   job_name: ps
   task_index: 0
-
-# Model Parameters & Regularization Parameters
-model:
-  hidden_units: [1024,512,256]
-  wide_learning_rate: 0.1
-  deep_learning_rate: 0.1
-
-  # optional
-  wide_l1: 0.5
-  wide_l2: 1
-  deep_l1: 0.01
-  deep_l2: 0.01
-  dropout:
 
 # Saving Parameters (Optional)
 # Defined in tf.estimator.RunConfig.

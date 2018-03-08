@@ -1,8 +1,9 @@
 # Input Data Schema
+
 # The order must be consistent with the raw data.
-# First is the label.
-# Case insensitive here.
-# Feature ID: Feature Name
+# First field is the label. Case insensitive here.
+
+# feature id: feature name
 1: clk
 2: request_id
 3: account_id
