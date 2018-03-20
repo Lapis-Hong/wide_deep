@@ -3,8 +3,10 @@
 # @Author: lapis-hong
 # @Date  : 2018/1/15
 """
-Bulid feature columns using tf.feature_column API.
-Build estimator using tf.estimator API and custom API.
+Build feature columns using tf.feature_column API.
+Build estimator using tf.estimator API and custom API (defined in lib module)
+Use function `build_estimator` to use official classifier
+Use function `build_costum_estimator` to use custom classifier.
 """
 # # TODO: optimizer config, tf.train.optimizer choose which one ?
 from __future__ import absolute_import
@@ -17,8 +19,13 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from lib.model.dnn import DNN, MultiDNNClassifier
-from lib.model.joint import WideAndDeepClassifier
+# fix ImportError: No mudule named lib.*
+import sys
+PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PACKAGE_DIR)
+
+from lib.dnn import DNN, MultiDNNClassifier
+from lib.joint import WideAndDeepClassifier
 from lib.read_conf import Config
 
 # wide columns
@@ -119,11 +126,17 @@ def _build_model_columns():
         cf_list = []
         for f in cross_features:
             f_type = feature_conf_dic[f]["type"]
+            f_tran = feature_conf_dic[f]["transform"]
             f_param = feature_conf_dic[f]["parameter"]
             if f_type == 'continuous':
-                cf_list.append(bucketized_column(numeric_column(f), boundaries=f_param['boundaries']))
-            else:  # category col only put the name in crossed_column
-                cf_list.append(f)
+                cf_list.append(bucketized_column(numeric_column(f, default_value=0), boundaries=f_param['boundaries']))
+            else:
+                if f_tran == 'identity':
+                    # If an input feature is of numeric type, you can use categorical_column_with_identity
+                    cf_list.append(categorical_column_with_identity(f, num_buckets=f_param,
+                    default_value=0))
+                else:
+                    cf_list.append(f)  # category col put the name in crossed_column
         col = crossed_column(cf_list, hash_bucket_size)
         wide_columns.append(col)
         wide_dim += hash_bucket_size
@@ -261,7 +274,7 @@ def build_custom_estimator(model_dir, model_type):
         dnn_optimizer=CONF_DNN["dnn_optimizer"],
         dnn_hidden_units=CONF_DNN["hidden_units"],
         dnn_connected_mode=CONF_DNN["connected_mode"],
-        dnn_activation_fn=CONF_DNN["activation_function"],
+        dnn_activation_fn=eval(CONF_DNN["activation_function"]),
         dnn_dropout=CONF_DNN["dropout"],
         dnn_batch_norm=CONF_DNN["batch_normalization"],
         n_classes=2,
@@ -296,7 +309,7 @@ def _build_custom_estimator_test(model_dir, model_type):
 
 if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.DEBUG)
-    _build_model_columns()
+    # _build_model_columns()
     # _build_distribution()
     model = build_estimator('../model', 'wide')
     # print(model.config)  # <tensorflow.python.estimator.run_config.RunConfig object at 0x118de4e10>
@@ -308,4 +321,5 @@ if __name__ == '__main__':
     # print(model.get_variable_value('dnn/hiddenlayer_0/bias/Adagrad'))
     # print(model.get_variable_value('dnn/hiddenlayer_0/kernel'))
     # print(model.latest_checkpoint())  # another 4 method is export_savedmodel,train evaluate predict
-    _build_custom_estimator_test('../model', 'wide')
+    # _build_custom_estimator_test('../model', 'wide')
+    model = build_custom_estimator('../model', 'wide')

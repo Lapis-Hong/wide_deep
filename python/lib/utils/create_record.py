@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # @Author: lapis-hong
 # @Date  : 2018/3/6
+"""This script convert the raw image to tfrecords format."""
 import os
 import tensorflow as tf
 from PIL import Image

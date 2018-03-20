@@ -32,7 +32,7 @@ function load_data() {
         #sudo -iu appops hadoop fs -text ${input_path}/part* > ${output_path}
         sudo -iu appops hadoop fs -getmerge ${input_path}/part* ${output_path}
         sudo -iu appops chmod 666 ${output_path}
-		echo "Finish loading data to ${output_path}."  
+		echo "Finish loading data to local: ${output_path}."
 }
 if [ $dt -ne $end_dt ]; then
     cur_dt=$dt

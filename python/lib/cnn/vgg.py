@@ -247,12 +247,12 @@ class Vgg19(Vgg):
         print("build vgg model finished: %ds" % (time.time() - start_time))
         return self.fc8
 
-
 if __name__ == '__main__':
     vgg = Vgg16()
-    from lib.dataset import ImageDataSet
-    images = ImageDataSet().input_fn(True, '../../../data/image/train.tfrecords', 5)
-    images_vec = vgg.build(images)
-    sess = tf.InteractiveSession()
-    sess.run(tf.global_variables_initializer())
-    print(sess.run(images_vec))
+
+    # from lib.dataset import _ImageDataSet
+    # images = _ImageDataSet('../../../data/image/train.tfrecords').input_fn('train', 5)
+    # images_vec = vgg.build(images)
+    # sess = tf.InteractiveSession()
+    # sess.run(tf.global_variables_initializer())
+    # print(sess.run(images_vec))

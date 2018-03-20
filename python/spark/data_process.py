@@ -28,15 +28,16 @@ Details:
 All configuration see conf/data_process.yaml
 """
 
-# TODO: debug for run spark on yarn cluster and performance improvement
+# TODO: performance improvement
 import os
 import subprocess
 from datetime import date, datetime, timedelta
 
-from lib.read_conf import Config
-from lib.utils.util import timer
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
+
+from lib.read_conf import Config
+from lib.utils.util import timer
 
 
 def gen_dates(start=None, days=1, fmt='%Y%m%d'):

@@ -8,22 +8,24 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
-import os
 
 import tensorflow as tf
-from tensorflow.python import pywrap_tensorflow
+
+# or use the inspect_checkpoint library
+# from tensorflow.python.tools import inspect_checkpoint as chkp
+# chkp.print_tensors_in_checkpoint_file("/tmp/model.ckpt", tensor_name='', all_tensors=True)
+
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string("file_name", "", "Checkpoint filename")
+tf.app.flags.DEFINE_string("checkpoint_path", "", "Checkpoint file path")
 tf.app.flags.DEFINE_string("tensor_name", "", "Name of the tensor to inspect")
 
-
-checkpoint_path = os.path.join(model_dir, "model.ckpt")
-reader = pywrap_tensorflow.NewCheckpointReader(checkpoint_path)
-var_to_shape_map = reader.get_variable_to_shape_map()
-for key in var_to_shape_map:
-    print("tensor_name: ", key)
-    print(reader.get_tensor(key)) # Remove this is you want to print only variable names
+# checkpoint_path = FLAGS.file_name
+# reader = tf.train.NewCheckpointReader(checkpoint_path)
+# var_to_shape_map = reader.get_variable_to_shape_map()
+# for key in var_to_shape_map:
+#     print("tensor_name: ", key)
+#     print(reader.get_tensor(key))  # Remove this is you want to print only variable names
 
 
 def print_tensors_in_checkpoint_file(file_name, tensor_name):
@@ -42,7 +44,7 @@ def print_tensors_in_checkpoint_file(file_name, tensor_name):
         else:
             print("tensor_name: ", tensor_name)
             print(reader.get_tensor(tensor_name))
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:
         print(str(e))
         if "corrupted compressed block contents" in str(e):
             print("It's likely that your checkpoint file has been compressed "
@@ -51,7 +53,7 @@ def print_tensors_in_checkpoint_file(file_name, tensor_name):
 
 def main(unused_argv):
     if not FLAGS.file_name:
-        print("Usage: inspect_checkpoint --file_name=checkpoint_file_name "
+        print("Usage: inspect_checkpoint --checkpoint_path=checkpoint_file_name "
               "[--tensor_name=tensor_to_print]")
         sys.exit(1)
     else:

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # @Author: lapis-hong
-# @Date  : 2018/1/15
-"""Wide and Deep Model Evaluation"""
+# @Date  : 2018/2/2
+"""Wide and Deep Model Prediction
+Not support for custom classifier, cause use different variable name scope, key not found in checkpoint"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -15,25 +16,29 @@ import time
 
 import tensorflow as tf
 
-from lib.build_estimator import build_estimator
-from lib.dataset import input_fn
 from lib.read_conf import Config
+from lib.dataset import input_fn
+from lib.build_estimator import build_estimator
 from lib.utils.util import elapse_time
 
 CONFIG = Config().train
-parser = argparse.ArgumentParser(description='Evaluate Wide and Deep Model.')
+parser = argparse.ArgumentParser(description='Wide and Deep Model Prediction')
 
 parser.add_argument(
     '--model_dir', type=str, default=CONFIG["model_dir"],
     help='Model checkpoint dir for evaluating.')
 
 parser.add_argument(
-    '--test_data', type=str, default=CONFIG["test_data"],
+    '--model_type', type=str, default=CONFIG["model_type"],
+    help="Valid model types: {'wide', 'deep', 'wide_deep'}.")
+
+parser.add_argument(
+    '--data_dir', type=str,
     help='Evaluating data dir.')
 
 parser.add_argument(
-    '--model_type', type=str, default=CONFIG["model_type"],
-    help="Valid model types: {'wide', 'deep', 'wide_deep'}.")
+    '--image_data_dir', type=str, default=None,
+    help='Evaluating image data dir.')
 
 parser.add_argument(
     '--batch_size', type=int, default=CONFIG["batch_size"],
@@ -41,12 +46,7 @@ parser.add_argument(
 
 parser.add_argument(
     '--checkpoint_path', type=str, default=CONFIG["checkpoint_path"],
-    help="Path of a specific checkpoint to evaluate. If None, the latest checkpoint in model_dir is used.")
-
-# TODO：support distributed evaluation or not ?
-# parser.add_argument(
-#     '--is_distribution', type=int, default=0,
-#     help='Evaluating distributional or not')
+    help="Path of a specific checkpoint to predict. If None, the latest checkpoint in model_dir is used.")
 
 
 def main(unused_argv):
@@ -55,29 +55,31 @@ def main(unused_argv):
     # if FLAGS.is_distribution:
     #     print("Using distribution tensoflow. Job_name:{} Task_index:{}"
     #           .format(CONFIG.distribution["job_name"], CONFIG.distribution["task_index"]))
+    # model info
     print('Model type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
     print('Model directory: {}'.format(model_dir))
     model = build_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
+
     checkpoint_path = FLAGS.checkpoint_path or model.latest_checkpoint()
     if checkpoint_path is None:
         raise ValueError('No model checkpoint found, please check the model dir.')
     tf.logging.info('Using model checkpoint: {}'.format(checkpoint_path))
 
-    print('\n')
-    tf.logging.info('='*30+' START TESTING'+'='*30)
-    s_time = time.time()
-    results = model.evaluate(input_fn=lambda: input_fn(FLAGS.test_data, FLAGS.image_test_data, 'eval', FLAGS.batch_size),
-                             steps=None,  # Number of steps for which to evaluate model.
-                             hooks=None,
-                             checkpoint_path=FLAGS.checkpoint_path,  # If None, the latest checkpoint is used.
-                             name=None)
-    tf.logging.info('='*30+'FINISH TESTING, TAKE {}'.format(elapse_time(s_time))+'='*30)
-    # Display evaluation metrics
     print('-' * 80)
-    for key in sorted(results):
-        print('%s: %s' % (key, results[key]))
+    tf.logging.info('='*30+' START PREDICTION'+'='*30)
+    t0 = time.time()
+    predictions = model.predict(input_fn=lambda: input_fn(FLAGS.data_dir, FLAGS.image_data_dir, 'pred', FLAGS.batch_size),
+                                predict_keys=None,
+                                hooks=None,
+                                checkpoint_path=checkpoint_path)  # defaults None to use latest_checkpoint
+    tf.logging.info('='*30+'FINISH PREDICTION, TAKE {} mins'.format(elapse_time(t0))+'='*30)
+
+    for pred_dict in predictions:  # dict{probabilities, classes, class_ids}
+        class_id = pred_dict['class_ids'][0]
+        probability = pred_dict['probabilities'][class_id]
+        print('\nPrediction is "{}" ({:.1f}%)'.format(class_id, 100 * probability))
 
 if __name__ == '__main__':
     # Set to INFO for tracking training, default is WARN. ERROR for least messages

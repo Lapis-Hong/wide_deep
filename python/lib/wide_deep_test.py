@@ -6,11 +6,16 @@ import os
 
 import tensorflow as tf
 
-from lib import model as wide_deep
-from lib.dataset import CsvDataset
-from lib.read_conf import Config
+import sys
+PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PACKAGE_DIR)
 
-TEST_CSV = os.path.join(os.path.dirname(__file__), '../data/test/test2')
+from lib.read_conf import Config
+from lib.dataset import input_fn
+from lib.build_estimator import build_estimator
+
+
+TEST_CSV = os.path.join(os.path.dirname(PACKAGE_DIR), 'data/test/test2')
 USED_FEATURE_KEY = Config().get_feature_name('used')
 
 
@@ -33,7 +38,7 @@ class BaseTest(tf.test.TestCase):
             temp_csv.write(TEST_INPUT_VALUES)
 
     def test_input_fn(self):
-        features, labels = CsvDataset().input_fn(self.input_csv, num_epochs=1, shuffle=True, batch_size=1)
+        features, labels = input_fn(self.input_csv, 'eval', batch_size=1)
         with tf.Session() as sess:
             features, labels = sess.run((features, labels))
         # Compare the two features dictionaries.
@@ -50,24 +55,24 @@ class BaseTest(tf.test.TestCase):
 
     def build_and_test_estimator(self, model_type):
         """Ensure that model trains and minimizes loss."""
-        model = wide_deep.build_estimator(self.temp_dir, model_type)
+        model = build_estimator(self.temp_dir, model_type)
 
         # Train for 1 step to initialize model and evaluate initial loss
         model.train(
-            input_fn=lambda: CsvDataset().input_fn(
-                TEST_CSV, num_epochs=1, shuffle=True, batch_size=1),
+            input_fn=lambda: input_fn(
+                TEST_CSV, None, 'eval', batch_size=1),
             steps=1)
         initial_results = model.evaluate(
-            input_fn=lambda: CsvDataset().input_fn(
-                TEST_CSV, num_epochs=1, shuffle=False, batch_size=1))
+            input_fn=lambda: input_fn(
+                TEST_CSV, None, 'eval', batch_size=1))
 
         # Train for 100 epochs at batch size 3 and evaluate final loss
         model.train(
-            input_fn=lambda: CsvDataset().input_fn(
-                TEST_CSV, num_epochs=10, shuffle=True, batch_size=8))
+            input_fn=lambda: input_fn(
+                TEST_CSV, None, 'eval', batch_size=8))
         final_results = model.evaluate(
-            input_fn=lambda: CsvDataset().input_fn(
-                TEST_CSV, num_epochs=1, shuffle=False, batch_size=1))
+            input_fn=lambda: input_fn(
+                TEST_CSV, None, 'eval', batch_size=1))
 
         print('%s initial results:' % model_type, initial_results)
         print('%s final results:' % model_type, final_results)

@@ -3,7 +3,7 @@
 # @Author: lapis-hong
 # @Date  : 2018/2/7
 """
-TensorFlow Custom Estimators for Wide and Deep Joined Training Models.
+TensorFlow Custom Estimators for Wide and Deep Joint Training Models.
 
 There are two ways to build custom estimator.
     1. Write model_fn function to pass to `tf.estimator.Estimator` to generate an instance.
@@ -11,28 +11,33 @@ There are two ways to build custom estimator.
     2. Write subclass of `tf.estimator.Estimator` like premade(canned) estimators.
        much suitable for official project. 
     
-This module based on canned tf.estimator.DNNLinearCombinedClassifier.
+This module is based on tf.estimator.DNNLinearCombinedClassifier.
 It merges `wide`, `deep`, `wide_deep` three types model into one class 
-`WideAndDeepClassifier` by argument model_type
-It is flexible to modify the DNN network structure and input features.
+`WideAndDeepClassifier` by argument model_type 
+It is a flexible and general joint learning framework.
 
-Currently, add BN layer options and connections between layers (refer to ResNet and DenseNet)
-Deep part can receive any other model as input.
+Currently extensions:
+    1. add BN layer options 
+    2. arbitrary connections between layers (refer to ResNet and DenseNet)
+    3. add Cnn as deep part 
 """
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
 
 import six
 import tensorflow as tf
 from tensorflow.python.estimator.canned import head as head_lib
 
-from lib.model.linear import _linear_learning_rate, _linear_logit_fn_builder
-from lib.model.dnn import _multidnn_logit_fn_builder
-from lib.model import util
-from lib.model.cnn.vgg import Vgg16
+import os
+import sys
+PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PACKAGE_DIR)
+
+from lib.linear import linear_learning_rate, linear_logit_fn_builder
+from lib.dnn import multidnn_logit_fn_builder
+from lib.utils import model_util as util
+from lib.cnn.vgg import Vgg16
 
 # original import source
 # from tensorflow.python.estimator import estimator
@@ -56,7 +61,7 @@ _LINEAR_LEARNING_RATE = 0.005
 _CNN_LEARNING_RATE = 0.01
 
 
-def _dnn_linear_combined_model_fn(
+def _wide_deep_combined_model_fn(
         features, labels, mode, head,
         model_type,
         with_cnn=False,
@@ -72,43 +77,52 @@ def _dnn_linear_combined_model_fn(
         dnn_batch_norm=None,
         input_layer_partitioner=None,
         config=None):
-    """Deep Neural Net and Linear combined model_fn.
+    """Wide and Deep combined model_fn. (Dnn, Cnn, Linear)
     Args:
-      features: dict of `Tensor`.
-      labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of dtype
-        `int32` or `int64` in the range `[0, n_classes)`.
-      mode: Defines whether this is training, evaluation or prediction.
-        See `ModeKeys`.
+        features: dict of `Tensor`.
+        labels: `Tensor` of shape [batch_size, 1] or [batch_size] labels of dtype
+            `int32` or `int64` in the range `[0, n_classes)`.
+      mode: Defines whether this is training, evaluation or prediction. See `ModeKeys`.
       head: A `Head` instance.
-      linear_feature_columns: An iterable containing all the feature columns used
-        by the Linear model.
-      linear_optimizer: string, `Optimizer` object, or callable that defines the
-        optimizer to use for training the Linear model. Defaults to the Ftrl
+      model_type: one of `wide`, `deep`, `wide_deep`.
+      with_cnn: Bool, set True to combine image input featrues using cnn.
+      cnn_optimizer: String, `Optimizer` object, or callable that defines the
+        optimizer to use for training the CNN model. Defaults to the Adagrad
         optimizer.
+      linear_feature_columns: An iterable containing all the feature columns used
+          by the Linear model.
+      linear_optimizer: String, `Optimizer` object, or callable that defines the
+          optimizer to use for training the Linear model. Defaults to the Ftrl
+          optimizer.
       dnn_feature_columns: An iterable containing all the feature columns used by
         the DNN model.
-      dnn_optimizer: string, `Optimizer` object, or callable that defines the
+      dnn_optimizer: String, `Optimizer` object, or callable that defines the
         optimizer to use for training the DNN model. Defaults to the Adagrad
         optimizer.
       dnn_hidden_units: List of hidden units per DNN layer.
+      dnn_connected_mode: List of connected mode.
       dnn_activation_fn: Activation function applied to each DNN layer. If `None`,
-        will use `tf.nn.relu`.
+          will use `tf.nn.relu`.
       dnn_dropout: When not `None`, the probability we will drop out a given DNN
-        coordinate.
+          coordinate.
+      dnn_batch_norm: Bool, add BN layer after each DNN layer
       input_layer_partitioner: Partitioner for input layer.
-        config: `RunConfig` object to configure the runtime settings.
+          config: `RunConfig` object to configure the runtime settings.
     Returns:
-      `ModelFnOps`
+        `ModelFnOps`
     Raises:
-      ValueError: If both `linear_feature_columns` and `dnn_features_columns`
-        are empty at the same time, or `input_layer_partitioner` is missing,
-        or features has the wrong type.
+        ValueError: If both `linear_feature_columns` and `dnn_features_columns`
+            are empty at the same time, or `input_layer_partitioner` is missing,
+            or features has the wrong type.
     """
-    cnn_features = features.pop('image')  # separate image feature from input_fn
-
     if not isinstance(features, dict):
         raise ValueError('features should be a dictionary of `Tensor`s. '
                          'Given type: {}'.format(type(features)))
+    if with_cnn:
+        try:
+            cnn_features = features.pop('image')  # separate image feature from input_fn
+        except KeyError:
+            raise ValueError('No input image features, must provide image features if use cnn.')
     num_ps_replicas = config.num_ps_replicas if config else 0
     input_layer_partitioner = input_layer_partitioner or (
         tf.min_max_variable_partitioner(max_partitions=num_ps_replicas,
@@ -127,7 +141,7 @@ def _dnn_linear_combined_model_fn(
                 dnn_parent_scope,
                 values=tuple(six.itervalues(features)),
                 partitioner=dnn_partitioner):
-            dnn_logit_fn = _multidnn_logit_fn_builder(
+            dnn_logit_fn = multidnn_logit_fn_builder(
                 units=head.logits_dimension,
                 hidden_units_list=dnn_hidden_units,
                 connected_mode_list=dnn_connected_mode,
@@ -145,14 +159,14 @@ def _dnn_linear_combined_model_fn(
         linear_logits = None
     else:
         linear_optimizer = util.get_optimizer_instance(linear_optimizer,
-                                                       learning_rate=_linear_learning_rate(len(linear_feature_columns)))
+            learning_rate=linear_learning_rate(len(linear_feature_columns)))
         util._check_no_sync_replicas_optimizer(linear_optimizer)
         with tf.variable_scope(
                 linear_parent_scope,
                 values=tuple(six.itervalues(features)),
                 partitioner=input_layer_partitioner) as scope:
-            logit_fn = _linear_logit_fn_builder(units=head.logits_dimension,
-                                                feature_columns=linear_feature_columns)
+            logit_fn = linear_logit_fn_builder(units=head.logits_dimension,
+                feature_columns=linear_feature_columns)
             linear_logits = logit_fn(features=features)
             util.add_layer_summary(linear_logits, scope.name)
 
@@ -228,8 +242,7 @@ def _dnn_linear_combined_model_fn(
 
 
 class WideAndDeepClassifier(tf.estimator.Estimator):
-    """An estimator for TensorFlow Linear and DNN joined classification models.
-    Note: This estimator is also known as wide-n-deep.
+    """An estimator for TensorFlow Wide and Deep joined classification models.
     Example:
     ```python
     numeric_feature = numeric_column(...)
@@ -301,49 +314,49 @@ class WideAndDeepClassifier(tf.estimator.Estimator):
                  label_vocabulary=None,
                  input_layer_partitioner=None,
                  config=None):
-        """Initializes a DNNLinearCombinedClassifier instance.
+        """Initializes a WideDeepCombinedClassifier instance.
         Args:
-          model_dir: Directory to save model parameters, graph and etc. This can
-            also be used to load checkpoints from the directory into a estimator
-            to continue training a previously saved model.
-          linear_feature_columns: An iterable containing all the feature columns
-            used by linear part of the model. All items in the set must be
-            instances of classes derived from `FeatureColumn`.
-          linear_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-            the linear part of the model. Defaults to FTRL optimizer.
-          dnn_feature_columns: An iterable containing all the feature columns used
-            by deep part of the model. All items in the set must be instances of
-            classes derived from `FeatureColumn`.
-          dnn_optimizer: An instance of `tf.Optimizer` used to apply gradients to
-            the deep part of the model. Defaults to Adagrad optimizer.
-          dnn_hidden_units: List of hidden units per layer. All layers are fully
-            connected.
-          dnn_activation_fn: Activation function applied to each layer. If None,
-            will use `tf.nn.relu`.
-          dnn_dropout: When not None, the probability we will drop out
-            a given coordinate.
-          n_classes: Number of label classes. Defaults to 2, namely binary
-            classification. Must be > 1.
-          weight_column: A string or a `_NumericColumn` created by
-            `tf.feature_column.numeric_column` defining feature column representing
-            weights. It is used to down weight or boost examples during training. It
-            will be multiplied by the loss of the example. If it is a string, it is
-            used as a key to fetch weight tensor from the `features`. If it is a
-            `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
-            then weight_column.normalizer_fn is applied on it to get weight tensor.
-          label_vocabulary: A list of strings represents possible label values. If
-            given, labels must be string type and have any value in
-            `label_vocabulary`. If it is not given, that means labels are
-            already encoded as integer or float within [0, 1] for `n_classes=2` and
-            encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
-            Also there will be errors if vocabulary is not provided and labels are
-            string.
-          input_layer_partitioner: Partitioner for input layer. Defaults to
-            `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
-          config: RunConfig object to configure the runtime settings.
+            model_dir: Directory to save model parameters, graph and etc. This can
+                also be used to load checkpoints from the directory into a estimator
+                to continue training a previously saved model.
+            linear_feature_columns: An iterable containing all the feature columns
+                used by linear part of the model. All items in the set must be
+                instances of classes derived from `FeatureColumn`.
+            linear_optimizer: An instance of `tf.Optimizer` used to apply gradients to
+                the linear part of the model. Defaults to FTRL optimizer.
+            dnn_feature_columns: An iterable containing all the feature columns used
+                by deep part of the model. All items in the set must be instances of
+                classes derived from `FeatureColumn`.
+            dnn_optimizer: An instance of `tf.Optimizer` used to apply gradients to
+                the deep part of the model. Defaults to Adagrad optimizer.
+            dnn_hidden_units: List of hidden units per layer. All layers are fully
+                connected.
+            dnn_activation_fn: Activation function applied to each layer. If None,
+                will use `tf.nn.relu`.
+            dnn_dropout: When not None, the probability we will drop out
+                a given coordinate.
+            n_classes: Number of label classes. Defaults to 2, namely binary
+                classification. Must be > 1.
+            weight_column: A string or a `_NumericColumn` created by
+                `tf.feature_column.numeric_column` defining feature column representing
+                weights. It is used to down weight or boost examples during training. It
+                will be multiplied by the loss of the example. If it is a string, it is
+                used as a key to fetch weight tensor from the `features`. If it is a
+                `_NumericColumn`, raw tensor is fetched by key `weight_column.key`,
+                then weight_column.normalizer_fn is applied on it to get weight tensor.
+            label_vocabulary: A list of strings represents possible label values. If
+                given, labels must be string type and have any value in
+                `label_vocabulary`. If it is not given, that means labels are
+                already encoded as integer or float within [0, 1] for `n_classes=2` and
+                encoded as integer values in {0, 1,..., n_classes-1} for `n_classes`>2 .
+                Also there will be errors if vocabulary is not provided and labels are
+                string.
+            input_layer_partitioner: Partitioner for input layer. Defaults to
+                `min_max_variable_partitioner` with `min_slice_size` 64 << 20.
+            config: RunConfig object to configure the runtime settings.
         Raises:
-          ValueError: If both linear_feature_columns and dnn_features_columns are
-            empty at the same time.
+            ValueError: If both linear_feature_columns and dnn_features_columns are
+                empty at the same time.
         """
         if not linear_feature_columns and not dnn_feature_columns:
             raise ValueError('Either linear_feature_columns or dnn_feature_columns must be defined.')
@@ -372,7 +385,7 @@ class WideAndDeepClassifier(tf.estimator.Estimator):
                 label_vocabulary=label_vocabulary)
 
         def _model_fn(features, labels, mode, config):
-            return _dnn_linear_combined_model_fn(
+            return _wide_deep_combined_model_fn(
                 features=features,
                 labels=labels,
                 mode=mode,
@@ -393,3 +406,4 @@ class WideAndDeepClassifier(tf.estimator.Estimator):
                 config=config)
         super(WideAndDeepClassifier, self).__init__(
             model_fn=_model_fn, model_dir=model_dir, config=config)
+

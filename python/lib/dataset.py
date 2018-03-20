@@ -3,12 +3,21 @@
 # @Author: lapis-hong
 # @Date  : 2018/1/24
 """Parse data and generate input_fn for tf.estimators"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from collections import OrderedDict
 import abc
 import tensorflow as tf
 
-from read_conf import Config
-from utils import image_preprocessing, vgg_preprocessing
+import os
+import sys
+PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PACKAGE_DIR)
+
+from lib.read_conf import Config
+from lib.utils import image_preprocessing, vgg_preprocessing
 
 
 class _CTRDataset(object):
@@ -29,7 +38,7 @@ class _CTRDataset(object):
         self._cnn_conf = self._conf.model['cnn']
         self._shuffle_buffer_size = self._train_conf["shuffle_buffer_size"]
         self._num_parallel_calls = self._train_conf["num_parallel_calls"]
-        self._train_epoches = self._train_conf["train_epoches"]
+        self._train_epochs = self._train_conf["train_epochs"]
 
     @abc.abstractmethod
     def input_fn(self, mode, batch_size):
@@ -54,7 +63,6 @@ class _CsvDataset(_CTRDataset):
 
     def __init__(self, data_file):
         super(_CsvDataset, self).__init__(data_file)
-        self._data_file = data_file
         self._multivalue = self._train_conf["multivalue"]
         self._is_distribution = self._dist_conf["is_distribution"]
         cluster = self._dist_conf["cluster"]
@@ -96,9 +104,9 @@ class _CsvDataset(_CTRDataset):
          """
         _column_dtype_dic = OrderedDict()
         _column_dtype_dic['label'] = tf.int32
-        for f in self.feature:
-            if f in self.feature_conf:
-                conf = self.feature_conf[f]
+        for f in self._feature:
+            if f in self._feature_conf:
+                conf = self._feature_conf[f]
                 if conf['type'] == 'category':
                     if conf['transform'] == 'identity':  # identity category column need int type
                         _column_dtype_dic[f] = tf.int32
@@ -110,7 +118,7 @@ class _CsvDataset(_CTRDataset):
                 _column_dtype_dic[f] = tf.string
         return _column_dtype_dic
 
-    def _parse_csv(self, is_pred=False, field_delim='\t', na_value='-', multivalue=False, multivalue_delim=','):
+    def _parse_csv(self, is_pred=False, field_delim='\t', na_value='-', multivalue_delim=','):
         """Parse function for csv data
         Args:
             is_pred: bool, defaults to False
@@ -131,6 +139,7 @@ class _CsvDataset(_CTRDataset):
         if is_pred:
             self._csv_defaults.pop('label')
         csv_defaults = self._csv_defaults
+        multivalue = self._multivalue
 
         def parser(value):
             """Parse train and eval data with label
@@ -179,11 +188,11 @@ class _CsvDataset(_CTRDataset):
         # and a label tensor for each example.
         # Shuffle, repeat, and batch the examples.
         dataset = dataset.map(
-            self._parse_csv(is_pred=(mode == 'pred'), multivalue=self._multivalue),
+            self._parse_csv(is_pred=(mode == 'pred')),
             num_parallel_calls=self._num_parallel_calls)
         if mode == 'train':
             dataset = dataset.shuffle(buffer_size=self._shuffle_buffer_size, seed=123)
-            dataset = dataset.repeat(self._train_epoches)
+            dataset = dataset.repeat(self._train_epochs)
 
         dataset = dataset.prefetch(2 * batch_size)
         if self._multivalue:
@@ -285,7 +294,7 @@ class _ImageDataSet(_CTRDataset):
             # randomness, while smaller sizes have better performance.
             # seed must be same with above CsvDataset
             dataset = dataset.shuffle(buffer_size=self._shuffle_buffer_size, seed=123)
-            dataset = dataset.repeat(self._train_epoches)
+            dataset = dataset.repeat(self._train_epochs)
         dataset = dataset.batch(batch_size)
         images = dataset.make_one_shot_iterator().get_next()
         return images
@@ -293,13 +302,22 @@ class _ImageDataSet(_CTRDataset):
 
 def input_fn(csv_data_file, img_data_file, mode, batch_size):
     """Combine input_fn for tf.estimators
+    Combine both csv and image data; combine both train and pred mode.
     set img_data_file None to use only csv data
     """
-    features, label = _CsvDataset(csv_data_file).input_fn(mode, batch_size)
-    if img_data_file is not None:
-        img_data = _ImageDataSet(img_data_file).input_fn(mode, batch_size)
-        features.update(img_data)  # add image Tensor to feature dict.
-    return features, label
+    if mode == 'pred':
+        features = _CsvDataset(csv_data_file).input_fn(mode, batch_size)
+        if img_data_file is not None:
+            img_data = _ImageDataSet(img_data_file).input_fn(mode, batch_size)
+            features.update(img_data)  # add image Tensor to feature dict.
+        return features
+
+    else:
+        features, label = _CsvDataset(csv_data_file).input_fn(mode, batch_size)
+        if img_data_file is not None:
+            img_data = _ImageDataSet(img_data_file).input_fn(mode, batch_size)
+            features.update(img_data)  # add image Tensor to feature dict.
+        return features, label
 
 
 def _input_tensor_test(data_file, batch_size=5):
@@ -329,12 +347,14 @@ def _input_tensor_test(data_file, batch_size=5):
     # print(sess.run(dense_tensor))
 
 if __name__ == '__main__':
-    csv_path = '../data/train/train1'
-    img_path = '../data/image/train.tfrecords'
+    csv_path = '../../data/train/train1'
+    img_path = '../../data/image/train.tfrecords'
     _input_tensor_test(csv_path)
     sess = tf.InteractiveSession()
     data = input_fn(csv_path, img_path, 'train', 5)
     print(sess.run(data))
+
+
 
 
 

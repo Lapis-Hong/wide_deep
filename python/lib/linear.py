@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # @Author: lapis-hong
 # @Date  : 2018/2/9
-"""This module based on tf.estimator.LinearClassifier.
+"""This module is based on tf.estimator.LinearClassifier.
 linear logits builder for wide part"""
 # TODO: add FM as linear part
 import math
@@ -12,7 +12,7 @@ import tensorflow as tf
 _LINEAR_LEARNING_RATE = 0.005
 
 
-def _linear_learning_rate(num_linear_feature_columns):
+def linear_learning_rate(num_linear_feature_columns):
     """Returns the default learning rate of the linear model.
     The calculation is a historical artifact of this initial implementation, but
     has proven a reasonable choice.
@@ -25,14 +25,14 @@ def _linear_learning_rate(num_linear_feature_columns):
     return min(_LINEAR_LEARNING_RATE, default_learning_rate)
 
 
-def _linear_logit_fn_builder(units, feature_columns):
+def linear_logit_fn_builder(units, feature_columns):
     """Function builder for a linear logit_fn.
     Args:
       units: An int indicating the dimension of the logit layer.
       feature_columns: An iterable containing all the feature columns used by the model.
     Returns:
       A logit_fn (see below).
-  """
+    """
 
     def linear_logit_fn(features):
         """Linear model logit_fn.
@@ -46,7 +46,10 @@ def _linear_logit_fn_builder(units, feature_columns):
         return tf.feature_column.linear_model(
             units=units,
             features=features,
-            feature_columns=feature_columns
+            feature_columns=feature_columns,
+            sparse_combiner='sum',
+            weight_collections=None,
+            trainable=True,
         )
 
     return linear_logit_fn

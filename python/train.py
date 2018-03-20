@@ -52,6 +52,12 @@ parser.add_argument(
     '--image_train_data', type=str, default=CONFIG["image_train_data"],
     help='Path to the train data.')
 parser.add_argument(
+    '--image_eval_data', type=str, default=CONFIG["image_eval_data"],
+    help='Path to the train data.')
+parser.add_argument(
+    '--image_test_data', type=str, default=CONFIG["image_test_data"],
+    help='Path to the train data.')
+parser.add_argument(
     '--keep_train', type=int, default=CONFIG["keep_train"],
     help='Whether to keep training on previous trained model.')
 # parser.add_argument(

@@ -6,13 +6,16 @@
 import os
 import yaml
 
-BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'conf')
+from os.path import dirname, abspath
+
+BASE_DIR = os.path.join(dirname(dirname(dirname(abspath(__file__)))), 'conf')
 SCHEMA_CONF_FILE = 'schema.yaml'
 DATA_PROCESS_CONF_FILE = 'data_process.yaml'
 FEATURE_CONF_FILE = 'feature.yaml'
 CROSS_FEATURE_CONF_FILE = 'cross_feature.yaml'
 MODEL_CONF_FILE = 'model.yaml'
 TRAIN_CONF_FILE = 'train.yaml'
+SERVING_CONF_FILE = 'serving.yaml'
 
 
 class Config(object):
@@ -26,13 +29,15 @@ class Config(object):
                  feature_conf_file=FEATURE_CONF_FILE,
                  cross_feature_conf_file=CROSS_FEATURE_CONF_FILE,
                  model_conf_file=MODEL_CONF_FILE,
-                 train_conf_file=TRAIN_CONF_FILE):
+                 train_conf_file=TRAIN_CONF_FILE,
+                 serving_conf_file=SERVING_CONF_FILE):
         self._schema_conf_file = os.path.join(BASE_DIR, schema_conf_file)
         self._data_process_conf_file = os.path.join(BASE_DIR, data_process_conf_file)
         self._feature_conf_file = os.path.join(BASE_DIR, feature_conf_file)
         self._cross_feature_conf_file = os.path.join(BASE_DIR, cross_feature_conf_file)
         self._model_conf_file = os.path.join(BASE_DIR, model_conf_file)
         self._train_conf_file = os.path.join(BASE_DIR, train_conf_file)
+        self._serving_conf_file = os.path.join(BASE_DIR, serving_conf_file)
 
     def read_schema(self):
         with open(self._schema_conf_file) as f:
@@ -140,13 +145,13 @@ class Config(object):
         with open(self._train_conf_file) as f:
             return yaml.load(f)
 
+    def _read_serving_conf(self):
+        with open(self._serving_conf_file) as f:
+            return yaml.load(f)
+
     @property
     def config(self):
         return self._read_train_conf()
-
-    @property
-    def model(self):
-        return self._read_model_conf()
 
     @property
     def train(self):
@@ -159,6 +164,14 @@ class Config(object):
     @property
     def runconfig(self):
         return self._read_train_conf()["runconfig"]
+
+    @property
+    def model(self):
+        return self._read_model_conf()
+
+    @property
+    def serving(self):
+        return self._read_serving_conf()
 
     def get_feature_name(self, feature_type='all'):
         """
@@ -192,9 +205,8 @@ def _test():
     print(config.runconfig)
     print(config.train["model_dir"])
 
-    model_conf_dic = config.read_model_conf()
     print('\nModel conf:')
-    for k, v in model_conf_dic.items():
+    for k, v in config.model.items():
         print(k, v)
 
     feature_conf_dic = config.read_feature_conf()
@@ -216,8 +228,8 @@ def _test():
     print(members)
 
 if __name__ == '__main__':
-    #_test()
+    _test()
 
-    print(Config().model["dnn"])
+
 
 

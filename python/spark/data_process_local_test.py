@@ -12,10 +12,11 @@ import os
 import shutil
 import sys
 
-from lib.read_conf import Config
-from lib.utils.util import timer
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
+
+from lib.read_conf import Config
+from lib.utils.util import timer
 
 
 @timer('Successfully process the raw data!')
