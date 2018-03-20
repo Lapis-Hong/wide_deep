@@ -18,14 +18,15 @@ linear:
 #   3. `last_dense`: add addition connections from all previous layers to last layer.
 #   4. `dense`: add addition connections between all layers, similar to DenseNet.
 #   5. `resnet`: add addition connections between adjacent layers, similar to ResNet.
-#   6. arbitrary connections index tuples: add addition connections from index tuples.
-#   eg: [(0,1),(0,3),(1,2)]  index from zero, max index is len(hidden_units), smaller index first.
+#   6. arbitrary connections list: add addition connections from layer_0 to layer_1 like 0-1.
+#      eg: [0-1,0-3,1-2]  index start from zero(input_layer), max index is len(hidden_units), smaller index first.
 
-# to use multi dnn model, set nested hidden_units, connected_mode should be a list or use same mode.
-# only above 2 network architecture parameters are different, other parameters are same for multi dnn model.
+# to use multi dnn model, set nested hidden_units, eg: [[1024,512,256], [512,256]]
+# connected_mode can be set different for each dnn eg: ['simple', 'dense'] or use same mode if only set 'simple'
+# only above 2 network architecture parameters can be different, other parameters are same for multi dnn model.
 dnn:
   # network architecture
-  hidden_units: [[1024,512,256], [512, 256]]
+  hidden_units: [1024,512,256]
   connected_mode: 'simple'
 
   dnn_optimizer: 'Adagrad'
@@ -44,7 +45,7 @@ cnn:
   # provides a performance boost on GPU but is not always compatible
   # with CPU. If left unspecified, the data format will be chosen
   # automatically based on whether TensorFlow was built for CPU or GPU.
-  use_flag: 1
+  use_flag: 0
   data_format:
   height: 224
   width: 224

@@ -29,7 +29,11 @@
 
 # Set continuous feature transform 'discretize' to  bucketized to wide input.
 # Set unused features by using symbol `#` ahead of the lines.
+# Set mean std empty to not do standardization for continuous features
+# Category features with hash_bucket using embedding_column to feed deep,
+# other cases using indicator_column to feed deep.
 # All listed features are used in model.
+
 
 # Note:
 #   An interesting discovery is that randomly chose N number a_i between 1~N, i=1,...N
@@ -41,6 +45,8 @@
 #     for low sparsity category, set `hash_bucket_size` 3~4*category size to reduce collision
 #     for high sparsity category, set 1.5~2*category size to save memory.
 
+
+# TODO: support all tf.feature_column
 
 adplan_id:
   type: category
@@ -72,10 +78,10 @@ ip_original:
   transform: hash_bucket
   parameter: 500000
 
-galaxy_id:
-  type: category
-  transform: hash_bucket
-  parameter: 10000000
+#galaxy_id:
+#  type: category
+#  transform: hash_bucket
+#  parameter: 10000000
 
 app_version:
   type: category
@@ -92,10 +98,10 @@ u:
   transform: hash_bucket
   parameter: 10000000
 
-ctr_strategy_type:
-  type: category
-  transform: hash_bucket
-  parameter: 100
+#ctr_strategy_type:
+#  type: category
+#  transform: hash_bucket
+#  parameter: 100
 
 device_model:
   type: category
@@ -132,10 +138,10 @@ ucomp:
   transform: hash_bucket
   parameter: 1000
 
-cost_type:
-  type: category
-  transform: vocab
-  parameter: [0,1]
+#cost_type:
+#  type: category
+#  transform: vocab
+#  parameter: [0,1]
 
 os:
   type: category
@@ -173,10 +179,10 @@ weekdays:
   transform: vocab
   parameter: [1,2,3,4,5,6,7]
 
-month:
-  type: category
-  transform: vocab
-  parameter: ['01','02','03','04','05','06','07','08','09','10','11','12']
+#month:
+#  type: category
+#  transform: vocab
+#  parameter: ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 day:
   type: category

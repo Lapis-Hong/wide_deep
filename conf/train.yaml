@@ -14,9 +14,10 @@ train:
   eval_data: ./data/eval
   test_data: ./data/eval/test
   # optional, set empty to not use
-  image_train_data: ./data/iamge/train.tfrecords
+  image_train_data:  # ./data/iamge/train.tfrecords
   image_eval_data:
   image_test_data:
+
   train_epochs: 5
   epochs_per_eval: 1
   batch_size: 32

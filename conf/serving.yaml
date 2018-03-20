@@ -1,3 +1,13 @@
+# Config for saved_model.py
+SavedModel:
+  model_dir: SavedModel
+  model_type: wide_deep
+  checkpoint_path:
+  as_text: false
+  model_version: 1
+
+
+
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -20,7 +30,7 @@ spec:
           --port=9000 --model_name=inception --model_base_path=serving/inception-export
         ports:
         - containerPort: 9000
----
+
 apiVersion: v1
 kind: Service
 metadata:
