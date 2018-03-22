@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+
+cd ../python/spark
 # Run on a YARN cluster
 # export HADOOP_CONF_DIR=XXX
 # Configuration details see http://spark.apache.org/docs/latest/configuration.html

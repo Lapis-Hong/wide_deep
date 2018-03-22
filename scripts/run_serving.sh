@@ -57,7 +57,7 @@ do
     esac
 done
 
-cd ../python
+cd ../python/tensorflow_serving
 python export_savedmodel.py
 echo "Already export SavedModel."
 
