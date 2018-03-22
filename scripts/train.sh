@@ -6,6 +6,10 @@
 
 set -e
 
+day=`date -d "0 days ago" +'%Y%m%d'`
+echo ${day}
+echo $$
+
 cur_dir=$(cd `dirname $0`; pwd)
 log_dir=`dirname ${cur_dir}`/log
 

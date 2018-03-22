@@ -109,6 +109,48 @@ def train(model):
                 print('{}: {}'.format(key, results[key]))
 
 
+def dynamic_train(model):
+    """Dynamic train mode.
+    For example: 
+        train_data_files: [0301, 0302, 0303, ...]
+        train mode:
+            first take 0301 as train data, 0302 as test data;
+            then keep training take 0302 as train data, 0303 as test data ...
+    """
+    data_files = list_files(FLAGS.train_data)
+    data_files.sort()
+    assert len(data_files) > 1, 'Dynamic train mode need more than 1 data file'
+
+    for i in range(len(data_files)-1):
+        train_data = data_files[i]
+        test_data = data_files[i+1]
+        tf.logging.info('=' * 30 + ' START TRAINING DATA: {} '.format(train_data) + '=' * 30 + '\n')
+        for n in range(FLAGS.train_epochs):
+            t0 = time.time()
+            tf.logging.info('START TRAIN DATA <{}> <EPOCH {}>'.format(train_data, n + 1))
+            model.train(
+                input_fn=lambda: input_fn(train_data, FLAGS.image_train_data, 'train', FLAGS.batch_size),
+                hooks=None,
+                steps=None,
+                max_steps=None,
+                saving_listeners=None)
+            tf.logging.info('FINISH TRAIN DATA <{}> <EPOCH {}> take {} mins'.format(train_data, n + 1, elapse_time(t0)))
+            print('-' * 80)
+            tf.logging.info('START EVALUATE TEST DATA <{}> <EPOCH {}>'.format(test_data, n + 1))
+            t0 = time.time()
+            results = model.evaluate(
+                input_fn=lambda: input_fn(test_data, FLAGS.image_eval_data, 'eval', FLAGS.batch_size),
+                steps=None,  # Number of steps for which to evaluate model.
+                hooks=None,
+                checkpoint_path=None,  # latest checkpoint in model_dir is used.
+                name=None)
+            tf.logging.info('FINISH EVALUATE TEST DATA <{}> <EPOCH {}>: take {} mins'.format(test_data, n + 1, elapse_time(t0)))
+            print('-' * 80)
+            # Display evaluation metrics
+            for key in sorted(results):
+                print('{}: {}'.format(key, results[key]))
+
+
 def train_and_eval(model):
     train_spec = tf.estimator.TrainSpec(input_fn=lambda: input_fn(FLAGS.train_data, FLAGS.image_train_data, FLAGS.batch_size), max_steps=10000)
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda: input_fn(FLAGS.eval_data, FLAGS.image_eval_data, FLAGS.batch_size))
@@ -116,6 +158,7 @@ def train_and_eval(model):
 
 
 def main(unused_argv):
+    CONFIG = Config()
     print("Using TensorFlow version %s" % tf.__version__)
     assert "1.4" <= tf.__version__, "Need TensorFlow r1.4 or later."
     print("Using Train config: {}".format(CONFIG.train))
@@ -129,6 +172,10 @@ def main(unused_argv):
     # model = build_estimator(model_dir, FLAGS.model_type)
     model = build_custom_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
+
+    if CONFIG.train['dynamic_train']:
+        train = dynamic_train
+        print("Using dynamic train mode.")
 
     if CONFIG.distribution["is_distribution"]:
         print("Using PID: {}".format(os.getpid()))
@@ -177,7 +224,6 @@ def main(unused_argv):
 
 if __name__ == '__main__':
     # Set to INFO for tracking training, default is WARN. ERROR for least messages
-    CONFIG = Config()
     tf.logging.set_verbosity(tf.logging.INFO)
     FLAGS, unparsed = parser.parse_known_args()
     tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)

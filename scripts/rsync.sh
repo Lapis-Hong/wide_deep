@@ -24,6 +24,7 @@ do
         --exclude ".git" \
         --exclude "data" \
         --exclude "model" \
+        --exclude "SavedModel" \
         --exclude "log" \
         --exclude "conf/model.yaml" \
         --exclude "conf/train.yaml" \

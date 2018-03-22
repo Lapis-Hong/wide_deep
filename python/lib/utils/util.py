@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import time
 import os
+from collections import OrderedDict
 from functools import wraps
 
 import tensorflow as tf
@@ -55,6 +56,28 @@ def get_filenames(data_dir):
     assert os.path.exists(data_dir), (
         'Image data dir {} not found.'.format(data_dir))
     return os.listdir(data_dir)
+
+
+def column_to_dtype(feature, feature_conf):
+    """Parse columns to tf.dtype
+     Return: 
+         similar to _csv_column_defaults()
+     """
+    _column_dtype_dic = OrderedDict()
+    _column_dtype_dic['label'] = tf.int32
+    for f in feature:
+        if f in feature_conf:
+            conf = feature_conf[f]
+            if conf['type'] == 'category':
+                if conf['transform'] == 'identity':  # identity category column need int type
+                    _column_dtype_dic[f] = tf.int32
+                else:
+                    _column_dtype_dic[f] = tf.string
+            else:
+                _column_dtype_dic[f] = tf.float32  # 0.0 for float32
+        else:
+            _column_dtype_dic[f] = tf.string
+    return _column_dtype_dic
 
 
 

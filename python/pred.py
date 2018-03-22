@@ -56,6 +56,8 @@ def main(unused_argv):
     #     print("Using distribution tensoflow. Job_name:{} Task_index:{}"
     #           .format(CONFIG.distribution["job_name"], CONFIG.distribution["task_index"]))
     # model info
+    if FLAGS.data_dir is None:
+        raise ValueError("Must specify prediction data_file by --data_dir")
     print('Model type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
     print('Model directory: {}'.format(model_dir))

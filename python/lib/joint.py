@@ -191,7 +191,8 @@ def _wide_deep_combined_model_fn(
 
     # Combine logits and build full model.
     logits_combine = []
-    for logits in [dnn_logits, linear_logits, cnn_logits]:
+    # _BinaryLogisticHeadWithSigmoidCrossEntropyLoss, logits_dimension=1
+    for logits in [dnn_logits, linear_logits, cnn_logits]:  # shape: [batch_size, 1]
         if logits is not None:
             logits_combine.append(logits)
     logits = tf.add_n(logits_combine)
@@ -375,10 +376,12 @@ class WideAndDeepClassifier(tf.estimator.Estimator):
             raise ValueError('dnn_hidden_units must be defined when dnn_feature_columns is specified.')
 
         if n_classes == 2:
+            # units = 1
             head = head_lib._binary_logistic_head_with_sigmoid_cross_entropy_loss(
                 weight_column=weight_column,
                 label_vocabulary=label_vocabulary)
         else:
+            # units = n_classes
             head = head_lib._multi_class_head_with_softmax_cross_entropy_loss(
                 n_classes,
                 weight_column=weight_column,

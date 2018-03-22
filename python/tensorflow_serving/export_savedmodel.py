@@ -12,9 +12,6 @@ with SavedModel, including tf.saved_model APIs, Estimator APIs and a CLI.
 To prepare a trained Estimator for serving, you must export it in the standard SavedModel format. 
 
 https://www.tensorflow.org/programmers_guide/saved_model#using_savedmodel_with_estimators
-
-Usage: saved_model.py [--training_iteration=x] [--model_version=y] \
-    export_dir
 """
 from __future__ import print_function
 

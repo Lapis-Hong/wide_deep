@@ -10,11 +10,12 @@
 train:
   model_dir: model
   model_type: wide_deep
-  train_data: ./data/train
-  eval_data: ./data/eval
-  test_data: ./data/eval/test
+  dynamic_train: false
+  train_data: ../data/train
+  eval_data: ../data/eval
+  test_data: ../data/eval/test
   # optional, set empty to not use
-  image_train_data:  # ./data/iamge/train.tfrecords
+  image_train_data: ../data/iamge/train.tfrecords
   image_eval_data:
   image_test_data:
 

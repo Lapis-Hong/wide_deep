@@ -97,27 +97,6 @@ class _CsvDataset(_CTRDataset):
                 csv_defaults[f] = ['']
         return csv_defaults
 
-    def _column_to_dtype(self):
-        """Parse columns to tf.dtype
-         Return: 
-             similar to _csv_column_defaults()
-         """
-        _column_dtype_dic = OrderedDict()
-        _column_dtype_dic['label'] = tf.int32
-        for f in self._feature:
-            if f in self._feature_conf:
-                conf = self._feature_conf[f]
-                if conf['type'] == 'category':
-                    if conf['transform'] == 'identity':  # identity category column need int type
-                        _column_dtype_dic[f] = tf.int32
-                    else:
-                        _column_dtype_dic[f] = tf.string
-                else:
-                    _column_dtype_dic[f] = tf.float32  # 0.0 for float32
-            else:
-                _column_dtype_dic[f] = tf.string
-        return _column_dtype_dic
-
     def _parse_csv(self, is_pred=False, field_delim='\t', na_value='-', multivalue_delim=','):
         """Parse function for csv data
         Args:
