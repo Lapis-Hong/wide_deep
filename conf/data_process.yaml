@@ -11,5 +11,6 @@ output_hdfs_dir: /user/algo/user/dinghongquan/wide_deep
 # category feature index that used to generate new continuous feature
 # set empty to not generate continuous features
 category_feature_index_list: #[6, 7, 8]
-date: 20180220
+start_date: 20180220
+end_date: 20180221
 downsampling_keep_ratio: 0.01

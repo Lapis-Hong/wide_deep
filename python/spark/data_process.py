@@ -30,6 +30,7 @@ All configuration see conf/data_process.yaml
 
 # TODO: performance improvement
 import os
+import sys
 import subprocess
 from datetime import date, datetime, timedelta
 
@@ -43,11 +44,19 @@ from lib.read_conf import Config
 from lib.utils.util import timer
 
 
-def gen_dates(start=None, days=1, fmt='%Y%m%d'):
-    """generate date list before given date"""
+def gen_dates(start, days=1, fmt='%Y%m%d'):
+    """generate date list before given date."""
     start = datetime.strptime(start, fmt)
     day = timedelta(days=1)
     return [(start-day*i).strftime(fmt) for i in range(days)]
+
+
+def list_dates(start, end, fmt='%Y%m%d'):
+    """generate date list between start_date and end_date."""
+    start = datetime.strptime(start, fmt)
+    end = datetime.strptime(end, fmt)
+    days = (end-start).days
+    return [(start + timedelta(i)).strftime(fmt) for i in range(days+1)]
 
 
 def get_today():
@@ -114,21 +123,27 @@ if __name__ == '__main__':
     SCHEMA = Config().read_schema()
 
     feature_index_list = CONF['category_feature_index_list']
-    date = str(CONF['date'])
+    start_date = str(CONF['start_date'])
+    end_date = str(CONF['end_date'])
     keep_prob = CONF['downsampling_keep_ratio']
 
-    if date is None:
-        date = get_today()
-    inpath = [os.path.join(CONF['input_hdfs_dir'], d) for d in gen_dates(date, 30)]
-    outpath = os.path.join(CONF['output_hdfs_dir'], date)
-    # check path, hadoop output dir can not be exists, must be removed
-    for p in inpath:
-        if not exist_hdfs_path(p):
-            raise IOError('Hdfs path: {} not exsits'.format(p))
-    if exist_hdfs_path(outpath):
-        subprocess.call('hadoop fs -rm -r {}'.format(outpath), shell=True)
-        print('Remove hdfs path: {}'.format(outpath))
+    if start_date is None or end_date is None:
+        date_list = [get_today()]
+    else:
+        date_list = list_dates(start_date, end_date)
 
-    hdfs_data_preprocess(inpath, outpath)
+    for date in date_list:
+        print('Start processing date: {}'.format(date))
+        inpath = [os.path.join(CONF['input_hdfs_dir'], d) for d in gen_dates(date, 30)]
+        outpath = os.path.join(CONF['output_hdfs_dir'], date)
+        # check path, hadoop output dir can not be exists, must be removed
+        for p in inpath:
+            if not exist_hdfs_path(p):
+                raise IOError('Hdfs path: {} not exsits'.format(p))
+        if exist_hdfs_path(outpath):
+            subprocess.call('hadoop fs -rm -r {}'.format(outpath), shell=True)
+            print('Remove hdfs path: {}'.format(outpath))
+
+        hdfs_data_preprocess(inpath, outpath)
 
 

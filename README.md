@@ -48,12 +48,20 @@ cd scripts
 bash train.sh
 ```
 
-The model is saved to `./model` by default, which can be changed using the `--model_dir` flag.
-
 ### Testing
 ```
-
 python eval.py
+```
+or use shell scripts as follows:
+```
+bash test.sh
+```
+
+### Distributed Training
+run the code on ps as follows:
+```
+cd scripts
+bash run_ps.sh
 ```
 
 ### TensorBoard
