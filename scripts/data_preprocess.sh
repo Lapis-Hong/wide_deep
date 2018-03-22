@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+# The scripts do the data preprocess using pyspark.
 
 cd ../python/spark
 # Run on a YARN cluster
