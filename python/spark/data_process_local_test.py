@@ -15,6 +15,9 @@ import sys
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SparkSession
 
+PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PACKAGE_DIR)
+
 from lib.read_conf import Config
 from lib.utils.util import timer
 
