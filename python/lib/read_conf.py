@@ -20,8 +20,7 @@ SERVING_CONF_FILE = 'serving.yaml'
 
 class Config(object):
     """Config class 
-    Class attributes: config, train, distribution, model, runconfig
-    Class methods: read_cross_feature_conf, read_feature_conf, get_feature_name
+    Class attributes: config, train, distribution, model, runconfig, serving
     """
     def __init__(self,
                  schema_conf_file=SCHEMA_CONF_FILE,
@@ -52,8 +51,8 @@ class Config(object):
         type_ = kwargs["type"]
         trans = kwargs["transform"]
         param = kwargs["parameter"]
-        if type_ is None or trans is None or param is None:
-            raise ValueError("All attributes are required in feature conf, "
+        if type_ is None:
+            raise ValueError("Type are required in feature conf, "
                              "found empty value for feature `{}`".format(feature))
         if feature not in valid_feature_name:
             raise ValueError("Invalid feature name `{}` in feature conf, "
@@ -74,29 +73,43 @@ class Config(object):
                 if not isinstance(param, (tuple, list)):
                     raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
                                     'vocab parameter must be a list.'.format(param, feature))
-
         else:
-            mean, std, boundaries = param['mean'], param['std'], param['boundaries']
-            assert trans in {'numeric', 'discretize'}, \
-                "Invalid transform `{}` for feature `{}` in feature conf, " \
-                "continuous feature transform must be `numeric` or `discretize`.".format(trans, feature)
-            if mean and not isinstance(mean, (float, int)):
-                raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
-                                'parameter mean must be int or float.'.format(mean, feature))
-            if std and (not isinstance(std, (float, int)) or std <= 0):
-                    raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
-                                    'parameter std must be a positive number.'.format(std, feature))
-            if trans == 'discretize':
+            normalization, boundaries = param['normalization'], param['boundaries']
+            if trans:
+                assert trans in {'min_max', 'log', 'standard'}, \
+                    "Invalid transform `{}` for feature `{}` in feature conf, " \
+                    "continuous feature transform must be `min_max` or `log` or `standard`.".format(trans, feature)
+                if trans == 'min_max' or 'standard':
+                    if not isinstance(normalization, (list, tuple)) or len(normalization) != 2:
+                        raise TypeError('Invalid normalization parameter `{}` for feature `{}` in feature conf, '
+                                        'must be 2 elements list for `min_max` or `standard` scaler.'.format(normalization, feature))
+                if trans == 'min_max':
+                    min_, max_ = normalization
+                    if not isinstance(min_, (float, int)) or not isinstance(max_, (float, int)):
+                        raise TypeError('Invalid normalization parameter `{}` for feature `{}` in feature conf, '
+                                        'list elements must be int or float.'.format(normalization, feature))
+                    assert min_ < max_, ('Invalid normalization parameter `{}` for feature `{}` in feature conf, '
+                                         '[min, max] list elements must be min<max'.format(normalization, feature))
+                elif trans == 'standard':
+                    mean, std = normalization
+                    if not isinstance(mean, (float, int)):
+                        raise TypeError('Invalid normalization parameter `{}` for feature `{}` in feature conf, '
+                                        'parameter mean must be int or float.'.format(mean, feature))
+                    if not isinstance(std, (float, int)) or std <= 0:
+                            raise TypeError('Invalid normalization parameter `{}` for feature `{}` in feature conf, '
+                                            'parameter std must be a positive number.'.format(std, feature))
+            if boundaries:
                 if not isinstance(boundaries, (tuple, list)):
                     raise TypeError('Invalid parameter `{}` for feature `{}` in feature conf, '
                                     'discretize parameter must be a list.'.format(boundaries, feature))
-                for v in boundaries:
-                    assert isinstance(v, (int, float)), \
-                        "Invalid parameter `{}` for feature `{}` in feature conf, " \
-                        "discretize parameter element must be integer or float.".format(boundaries, feature)
+                else:
+                    for v in boundaries:
+                        assert isinstance(v, (int, float)), \
+                            "Invalid parameter `{}` for feature `{}` in feature conf, " \
+                            "discretize parameter element must be integer or float.".format(boundaries, feature)
 
     @staticmethod
-    def _check_cross_feature_conf(features, valid_feature_name, **kwargs):
+    def _check_cross_feature_conf(features, feature_conf, **kwargs):
         features_list = [f.strip() for f in features.split('&')]
         hash_bucket_size = kwargs["hash_bucket_size"]
         is_deep = kwargs["is_deep"]
@@ -104,9 +117,12 @@ class Config(object):
             'Invalid cross feature name `{}` in cross feature conf,'
             'at least 2 features'.format(features))
         for f in features_list:
-            if f not in valid_feature_name:
+            if f not in feature_conf:
                 raise ValueError("Invalid cross feature name `{}` in cross feature conf, "
                                  "must be consistent with feature conf".format(features))
+            if feature_conf[f]['type'] == 'continuous':
+                assert feature_conf[f]['parameter']['boundaries'] is not None, \
+                    'Continuous feature must be set bounaries to be bucketized in feature conf as cross feature'
         if hash_bucket_size:
             assert isinstance(hash_bucket_size, (int, float)), (
                 'Invalid hash_bucket_size `{}` for features `{}` in cross feature conf, ' 
@@ -128,9 +144,9 @@ class Config(object):
         with open(self._cross_feature_conf_file) as f:
             cross_feature_conf = yaml.load(f)
             conf_list = []
-            valid_feature_name = self.read_feature_conf()  # used features
+            feature_conf = self.read_feature_conf()  # used features
             for features, conf in cross_feature_conf.items():
-                self._check_cross_feature_conf(features, valid_feature_name, **conf)
+                self._check_cross_feature_conf(features, feature_conf, **conf)
                 features = [f.strip() for f in features.split('&')]
                 hash_bucket_size = 1000*conf["hash_bucket_size"] or 10000  # defaults to 10k
                 is_deep = conf["is_deep"] if conf["is_deep"] is not None else 1  # defaults to 10k

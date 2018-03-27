@@ -64,12 +64,11 @@ def main(unused_argv):
     print('Model directory: {}'.format(model_dir))
     model = build_estimator(model_dir, FLAGS.model_type)
     tf.logging.info('Build estimator: {}'.format(model))
-    checkpoint_path = FLAGS.checkpoint_path or model.latest_checkpoint()
-    if checkpoint_path is None:
-        raise ValueError('No model checkpoint found, please check the model dir.')
-    tf.logging.info('Using model checkpoint: {}'.format(checkpoint_path))
-
-    print('\n')
+    # checkpoint_path = FLAGS.checkpoint_path or model.latest_checkpoint()
+    # if checkpoint_path is None:
+    #     raise ValueError('No model checkpoint found, please check the model dir.')
+    # tf.logging.info('Using model checkpoint: {}'.format(checkpoint_path))
+    # print('\n')
     tf.logging.info('='*30+' START TESTING'+'='*30)
     s_time = time.time()
     results = model.evaluate(input_fn=lambda: input_fn(FLAGS.test_data, FLAGS.image_test_data, 'eval', FLAGS.batch_size),

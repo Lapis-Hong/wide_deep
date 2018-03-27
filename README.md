@@ -26,7 +26,7 @@ The code is based on the TensorFlow wide and deep tutorial.
 9. provide scripts to load data from hdfs.
 
 ## Running the code
-### Setup
+### Setupl
 ```
 cd conf
 vim feature.yaml

@@ -1,41 +1,41 @@
 # Feature Configuration
 
-# Using tf.feature_column API.
+# Using tf.feature_column in TensorFlow.
 # see https://www.tensorflow.org/api_docs/python/tf/feature_column
 
-# Each feature consists 3 attributes `type`, `transform`, `parameter`, all attributes are required (except mean & std).
-# 1. feature: feature name, must in schema.yaml.
-# 2. type: feature type,  'category' or 'continuous'.
-# 3. transform: determine feature transform in tensorflow.
+# Each feature consists 3 attributes `type`, `transform`, `parameter`.
+# 1. feature: feature name required, must in schema.yaml.
+# 2. type: required, feature type, `category` or `continuous`.
+# 3. transform: feature transform.
+# 4. parameter: main parameter for transform.
 #    (1) type: category
-#         allowed transform set {'hash_bucket', 'vocab', 'identity'}
-#         transform: hash_bucket  ==> tf.feature.categorical_column_with_hash_bucket
-#         transform: vocab        ==> tf.feature.categorical_column_with_vocabulary_list
-#         transform: identity     ==> tf. feature.categorical_column_with_identity
-#    (2) type: continuous,
-#         allowed transform set {'numeric', 'discretize'}
-#         transform: numeric      ==> tf.feature_column.numeric_column
-#         transform: discretize   ==> tf.feature_column.bucketized_column(tf.feature_column.numeric_column())
-# 4. parameter: main parameter for each transform, see details in tf.feature_column.
-#        transform          parameter
-#        hash_bucket   ==>  hash_bucket_size  # int
-#        vocab         ==>  vocabulary_list   # list
-#        identity      ==>  num_buckets       # int
-#        numeric       ==>  mean              # real value
-#                           std               # positive value
-#        discretize    ==>  mean              # real value
-#                           std               # positive value
-#                           boundaries        # list
-
-# Set continuous feature transform 'discretize' to  bucketized to wide input.
+#         transform: `hash_bucket` or `vocab` or `identity`.
+#           hash_bucket  ==> tf.feature.categorical_column_with_hash_bucket
+#           vocab        ==> tf.feature.categorical_column_with_vocabulary_list
+#           identity     ==> tf. feature.categorical_column_with_identity
+#         parameter: examples as follows,
+#           1000            (hash_bucket_size  for `hash_bucket`)
+#           ['a', 'b', 'c'] (vocabulary_list for `vocab`)
+#           15              (num_buckets  for `identity`)
+#    (2) type: continuous
+#         transform: `min_max`, `log`, `standard` normalization for normalizer_fn in
+#                    tf.feature_column.numeric_column, set empty to not do normalization.
+#           `min_max`    ==> x = (x-min) / (x-max);
+#           `log`        ==> x = log(x), all feature values must >= 1
+#           `standard`   ==> x = (x-mean) / std
+#
+#         parameter:
+#           normalization: [min, max] or [mean, std] list for `min_max` or `standard`; set empty for `log`.
+#           boundaries: optional, set boundaries, eg: [5, 10, 15, 20] for `discretize`
+#                       (bucketized continuous feature for wide input or as cross feature),
+#                       set empty for not use continuous feature for wide input.
 # Set unused features by using symbol `#` ahead of the lines.
-# Set mean std empty to not do standardization for continuous features
-# Category features with hash_bucket using embedding_column to feed deep,
-# other cases using indicator_column to feed deep.
+# Category features with hash_bucket using embedding_column to feed deep, others by indicator_column.
 # All listed features are used in model.
 
 
-# Note:
+# Q & A about hash_bucket_size:
+# If category size=1000, how much should hash_bucket_size be ?
 #   An interesting discovery is that randomly chose N number a_i between 1~N, i=1,...N
 #     let b_i = a_i % N, the distinct b_i from all N number is about 0.633.
 #     in other words, a random hash func chose N as hash_bucket_size collision rate is 0.633.
@@ -46,7 +46,8 @@
 #     for high sparsity category, set 1.5~2*category size to save memory.
 
 
-# TODO: support all tf.feature_column
+# TODO: support all tf.feature_column, add use_wide, use_deep flag, scaler.
+
 
 adplan_id:
   type: category
@@ -252,27 +253,24 @@ industry_level2_id:
 
 longitude:
   type: continuous
-  transform: discretize
+  transform: min_max
   parameter:
-    mean:
-    std:
+    normalization: [80,150]
     boundaries: [90,95,100,105,110,115,120,125,130]
 
 latitude:
   type: continuous
-  transform: discretize
+  transform: min_max
   parameter:
-    mean:
-    std:
+    normalization: [10,60]
     boundaries: [20,25,30,35,40,45,50]
 
 age:
   type: continuous
-  transform: discretize
+  transform: standard
   parameter:
-    mean:
-    std:
-    boundaries: [15,20,25,30,35,40,45,50,55,60,65]
+    normalization: [10, 90]
+    boundaries:  [15,20,25,30,35,40,45,50,55,60,65]
 
 #Request_id;category;hash_bucket;500000
 #account_id;category;hash_bucket;1000

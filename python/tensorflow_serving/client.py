@@ -197,7 +197,6 @@ def main(_):
     request = predict_pb2.PredictRequest()
     request.model_spec.name = FLAGS.model
     request.model_spec.signature_name = 'serving_default'
-
     # feature_dict = {'age': _float_feature(value=25),
     #               'capital_gain': _float_feature(value=0),
     #               'capital_loss': _float_feature(value=0),
@@ -209,12 +208,9 @@ def main(_):
     #               'occupation': _bytes_feature(value='Machine-op-inspct'.encode()),
     #               'relationship': _bytes_feature(value='Own-child'.encode()),
     #               'workclass': _bytes_feature(value='Private'.encode())}
-    label = 0
-
+    # label = 0
     data = _read_test_input()
-    print(data)
     feature_dict = pred_input_fn(data)
-    print(feature_dict)
 
     example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
     serialized = example.SerializeToString()
@@ -225,7 +221,7 @@ def main(_):
     result_future = stub.Predict.future(request, 5.0)
     prediction = result_future.result().outputs['scores']
 
-    print('True label: ' + str(label))
+    # print('True label: ' + str(label))
     print('Prediction: ' + str(np.argmax(prediction.float_val)))
 
 if __name__ == '__main__':

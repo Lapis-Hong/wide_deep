@@ -68,7 +68,8 @@ def main(_):
     #     print(f._parse_example_spec)
     # A dict mapping each feature key to a FixedLenFeature or VarLenFeature value.
     feature_spec = tf.feature_column.make_parse_example_spec(feature_columns)
-    serving_input_receiver_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(feature_spec)
+    serving_input_receiver_fn = \
+        tf.estimator.export.build_parsing_serving_input_receiver_fn(feature_spec)
 
     model_dir = os.path.join(model_base_dir, FLAGS.model_type)
     export_dir = os.path.join(FLAGS.export_dir, FLAGS.model_type)

@@ -57,6 +57,15 @@ def _build_model_columns():
         """empirical embedding dim"""
         return int(np.power(2, np.ceil(np.log(dim**0.25))))
 
+    def normalizer_fn_builder(scaler, *args):
+        """normalizer_fn builder"""
+        if scaler == 'min_max':
+            return lambda x: (x-args[0]) / (x-args[1])
+        elif scaler == 'standard':
+            return lambda x: (x-args[0]) / args[1]
+        else:
+            return lambda x: tf.log(x)
+
     feature_conf_dic = config.read_feature_conf()
     cross_feature_list = config.read_cross_feature_conf()
     tf.logging.info('Total used feature class: {}'.format(len(feature_conf_dic)))
@@ -109,14 +118,17 @@ def _build_model_columns():
                 wide_dim += num_buckets
                 deep_dim += num_buckets
         else:
-            # default to mean:0, std: 1, no standardization
-            mean, std, boundaries = f_param["mean"] or 0, f_param["std"] or 1, f_param["boundaries"]
+            normalizaton, boundaries = f_param["normalization"], f_param["boundaries"]
+            if f_tran is None:
+                normalizer_fn = None
+            else:
+                normalizer_fn = normalizer_fn_builder(f_tran, normalizaton)
             col = numeric_column(feature,
                  shape=(1,),
                  default_value=0,  # default None will fail if an example does not contain this column.
                  dtype=tf.float32,
-                 normalizer_fn=lambda x: (x - mean) / std)
-            if f_tran == 'discretize':  # whether include continuous features in wide part
+                 normalizer_fn=normalizer_fn)
+            if boundaries:  # whether include continuous features in wide part
                 wide_columns.append(bucketized_column(col, boundaries=boundaries))
                 wide_dim += (len(boundaries)+1)
             deep_columns.append(col)
