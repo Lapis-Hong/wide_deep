@@ -25,6 +25,10 @@ train:
   keep_train: 0
   checkpoint_path:
   # dataset
+  # set to use weight_column(weighted loss), set empty not use weight column
+  # typically set weight inverse ratio to pos_sample_num: neg_sample_num
+  pos_sample_loss_weight: 0.99
+  neg_sample_loss_weight: 0.01
   multivalue: 1
   shuffle_buffer_size: 2000000
   num_parallel_calls: 48

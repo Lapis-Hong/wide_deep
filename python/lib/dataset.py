@@ -63,6 +63,8 @@ class _CsvDataset(_CTRDataset):
 
     def __init__(self, data_file):
         super(_CsvDataset, self).__init__(data_file)
+        self._pos_sample_loss_weight = self._train_conf["pos_sample_loss_weight"]
+        self._neg_sample_loss_weight = self._train_conf["neg_sample_loss_weight"]
         self._multivalue = self._train_conf["multivalue"]
         self._is_distribution = self._dist_conf["is_distribution"]
         cluster = self._dist_conf["cluster"]
@@ -119,6 +121,8 @@ class _CsvDataset(_CTRDataset):
             self._csv_defaults.pop('label')
         csv_defaults = self._csv_defaults
         multivalue = self._multivalue
+        pos_w = self._pos_sample_loss_weight
+        neg_w = self._neg_sample_loss_weight
 
         def parser(value):
             """Parse train and eval data with label
@@ -150,6 +154,18 @@ class _CsvDataset(_CTRDataset):
 
             if not is_pred:
                 labels = features.pop('label')
+                if pos_w is None and neg_w is None:
+                    return features, tf.equal(labels, 1)
+                else:  # add weight column according to weight
+                    if pos_w is None:
+                        pos_w = 1
+                    elif neg_w is None:
+                        neg_w = 1
+                    weight = tf.cond(
+                        tf.equal(labels, 1),
+                        lambda: pos_w,
+                        lambda: neg_w)
+                    features["weight_column"] = weight
                 return features, tf.equal(labels, 1)
             else:
                 return features

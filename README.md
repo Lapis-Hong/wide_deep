@@ -21,12 +21,14 @@ The code is based on the TensorFlow wide and deep tutorial.
 4. support distributed tensorflow  
 5. support custom dnn network (arbitrary connections between layers)
 6. support dnn, multidnn joint learning, even combine with cnn.
-7. provide tensorflow serving for tf.estimator.
-8. provide scripts to do data proprocess using pyspark (generate continuous features from category features).
-9. provide scripts to load data from hdfs.
+7. support 3 types normalization for continuous features.
+8. support weight column for imbalance sample.
+9. provide tensorflow serving for tf.estimator.
+10. provide scripts to do data proprocess using pyspark (generate continuous features from category features).
+
 
 ## Running the code
-### Setupl
+### Setup
 ```
 cd conf
 vim feature.yaml

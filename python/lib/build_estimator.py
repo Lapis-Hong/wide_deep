@@ -206,6 +206,7 @@ def build_estimator(model_dir, model_type):
         model instance of tf.estimator.Estimator class
     """
     wide_columns, deep_columns = _build_model_columns()
+    weight_column = 'weight_column' if config.train['positive_rate'] else None
     _build_distribution()
     # Create a tf.estimator.RunConfig to ensure the model is run on CPU, which
     # trains faster than GPU for this model.
@@ -216,7 +217,7 @@ def build_estimator(model_dir, model_type):
         return tf.estimator.LinearClassifier(
             model_dir=model_dir,
             feature_columns=wide_columns,
-            weight_column=None,
+            weight_column=weight_column,
             optimizer=tf.train.FtrlOptimizer(
                 learning_rate=CONF_WIDE["wide_learning_rate"],
                 l1_regularization_strength=CONF_WIDE["wide_l1"],
@@ -234,7 +235,7 @@ def build_estimator(model_dir, model_type):
                 l2_regularization_strength=CONF_DNN["deep_l2"]),  # {'Adagrad', 'Adam', 'Ftrl', 'RMSProp', 'SGD'}
             activation_fn=eval(CONF_DNN["activation_function"]),  # tf.nn.relu vs 'tf.nn.relu'
             dropout=CONF_DNN["dropout"],
-            weight_column=None,
+            weight_column=wide_columns,
             input_layer_partitioner=None,
             config=run_config)
     else:
@@ -254,7 +255,7 @@ def build_estimator(model_dir, model_type):
             dnn_activation_fn=eval(CONF_DNN["activation_function"]),
             dnn_dropout=CONF_DNN["dropout"],
             n_classes=2,
-            weight_column=None,
+            weight_column=wide_columns,
             label_vocabulary=None,
             input_layer_partitioner=None,
             config=run_config)
@@ -269,6 +270,10 @@ def build_custom_estimator(model_dir, model_type):
         model instance of tf.estimator.Estimator class
     """
     wide_columns, deep_columns = _build_model_columns()
+    if config.train['pos_sample_loss_weight'] is None and config.train['neg_sample_loss_weight'] is None:
+        weight_column = None
+    else:
+        weight_column = 'weight_column'
     _build_distribution()
     # Create a tf.estimator.RunConfig to ensure the model is run on CPU, which
     # trains faster than GPU for this model.
@@ -290,7 +295,7 @@ def build_custom_estimator(model_dir, model_type):
         dnn_dropout=CONF_DNN["dropout"],
         dnn_batch_norm=CONF_DNN["batch_normalization"],
         n_classes=2,
-        weight_column=None,
+        weight_column=weight_column,
         label_vocabulary=None,
         input_layer_partitioner=None,
         config=run_config)
