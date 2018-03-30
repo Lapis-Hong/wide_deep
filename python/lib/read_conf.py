@@ -153,14 +153,80 @@ class Config(object):
                 conf_list.append((features, hash_bucket_size, is_deep))
             return conf_list
 
-    def _read_model_conf(self):  # TODO:
-        with open(self._model_conf_file) as f:
-            model = yaml.load(f)
-            return model
+    @staticmethod
+    def _check_numeric(key, value):
+        if not isinstance(value, (int, float)):
+            raise ValueError('Numeric type is required for key `{}`, found `{}`.'.format(key, value))
 
-    def _read_train_conf(self):  # TODO
+    @staticmethod
+    def _check_string(key, value):
+        if not isinstance(value, (str, unicode)):
+            raise ValueError('String type is required for key `{}`, found `{}`.'.format(key, value))
+
+    @staticmethod
+    def _check_bool(key, value):
+        if value not in {True, False, 1, 0}:
+            raise ValueError('Bool type is required for key `{}`, found `{}`.'.format(key, value))
+
+    @staticmethod
+    def _check_list(key, value):
+        if not isinstance(value, (list, tuple)):
+            raise ValueError('List type is required for key `{}`, found `{}`.'.format(key, value))
+
+    @staticmethod
+    def _check_required(key, value):
+        if value is None:
+            raise ValueError('Required type for key `{}`, found None.'.format(key))
+
+    def _read_model_conf(self):
+        # required string params
+        req_str_keys = ['linear_optimizer', 'dnn_optimizer', 'dnn_connected_mode', 'dnn_activation_function'
+                        'cnn_optimizer']
+        # optional int or float params
+        opt_num_keys = ['linear_initial_learning_rate', 'linear_decay_rate', 'dnn_initial_learning_rate',
+                        'dnn_decay_rate', 'dnn_l1', 'dnn_l2']
+        # optional bool params
+        opt_bool_keys = ['dnn_batch_normalization', 'cnn_use_flag']
+        #
+        req_list_keys = ['dnn_hidden_units']
+        with open(self._model_conf_file) as f:
+            model_conf = yaml.load(f)
+            for k, v in model_conf.items():
+                if k in req_str_keys:
+                    self._check_required(k, v)
+                    self._check_string(k, v)
+                elif k in opt_num_keys:
+                    if v:
+                        self._check_numeric(k, v)
+                elif k in opt_bool_keys:
+                    if v:
+                        self._check_bool(k, v)
+                elif k in req_list_keys:
+                    self._check_required(k, v)
+                    self._check_list(k, v)
+            return model_conf
+
+    def _read_train_conf(self):
+        req_str_keys = ['model_dir', 'model_type', 'train_data', 'test_data']
+        req_num_keys = ['train_epochs', 'epochs_per_eval', 'batch_size', 'num_examples', 'num_parallel_calls']
+        opt_num_keys = ['pos_sample_loss_weight', 'neg_sample_loss_weight']
+        req_bool_key = ['keep_train', 'multivalue', 'dynamic_train']
         with open(self._train_conf_file) as f:
-            return yaml.load(f)
+            train_conf = yaml.load(f)
+            for k, v in train_conf['train'].items():
+                if k in req_str_keys:
+                    self._check_required(k, v)
+                    self._check_string(k, v)
+                elif k in req_num_keys:
+                    self._check_required(k, v)
+                    self._check_numeric(k, v)
+                elif k in opt_num_keys:
+                    if v:
+                        self._check_numeric(k, v)
+                elif k in req_bool_key:
+                    self._check_required(k, v)
+                    self._check_bool(k, v)
+            return train_conf
 
     def _read_serving_conf(self):
         with open(self._serving_conf_file) as f:
