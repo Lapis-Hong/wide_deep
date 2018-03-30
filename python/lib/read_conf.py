@@ -208,8 +208,8 @@ class Config(object):
 
     def _read_train_conf(self):
         req_str_keys = ['model_dir', 'model_type', 'train_data', 'test_data']
-        req_num_keys = ['train_epochs', 'epochs_per_eval', 'batch_size', 'num_examples', 'num_parallel_calls']
-        opt_num_keys = ['pos_sample_loss_weight', 'neg_sample_loss_weight']
+        req_num_keys = ['train_epochs', 'epochs_per_eval', 'batch_size', 'num_examples']
+        opt_num_keys = ['pos_sample_loss_weight', 'neg_sample_loss_weight', 'num_parallel_calls']
         req_bool_key = ['keep_train', 'multivalue', 'dynamic_train']
         with open(self._train_conf_file) as f:
             train_conf = yaml.load(f)

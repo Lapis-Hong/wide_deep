@@ -60,12 +60,9 @@ parser.add_argument(
 parser.add_argument(
     '--keep_train', type=int, default=CONFIG["keep_train"],
     help='Whether to keep training on previous trained model.')
-# parser.add_argument(
-#     '--checkpoint_path', type=int, default=CONFIG["checkpoint_path"],
-#     help='Model checkpoint path for testing.')
 
 
-def train(model):
+def train_and_eval(model):
     for n in range(FLAGS.train_epochs):
         tf.logging.info('=' * 30 + ' START EPOCH {} '.format(n + 1) + '=' * 30 + '\n')
         train_data_list = list_files(FLAGS.train_data)  # dir to file list
@@ -151,7 +148,23 @@ def dynamic_train(model):
                 print('{}: {}'.format(key, results[key]))
 
 
-def train_and_eval(model):
+def train(model):
+    for n in range(FLAGS.train_epochs):
+        tf.logging.info('=' * 30 + ' START EPOCH {} '.format(n + 1) + '=' * 30 + '\n')
+        train_data_list = list_files(FLAGS.train_data)  # dir to file list
+        for f in train_data_list:
+            t0 = time.time()
+            tf.logging.info('<EPOCH {}>: Start training {}'.format(n + 1, f))
+            model.train(
+                input_fn=lambda: input_fn(f, FLAGS.image_train_data, 'train', FLAGS.batch_size),
+                hooks=None,
+                steps=None,
+                max_steps=None,
+                saving_listeners=None)
+            tf.logging.info('<EPOCH {}>: Finish training {}, take {} mins'.format(n + 1, f, elapse_time(t0)))
+
+
+def train_and_eval_api(model):
     train_spec = tf.estimator.TrainSpec(input_fn=lambda: input_fn(FLAGS.train_data, FLAGS.image_train_data, FLAGS.batch_size), max_steps=10000)
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda: input_fn(FLAGS.eval_data, FLAGS.image_eval_data, FLAGS.batch_size))
     tf.estimator.train_and_evaluate(model, train_spec, eval_spec)
@@ -184,7 +197,7 @@ def main(unused_argv):
         train_fn = dynamic_train
         print("Using dynamic train mode.")
     else:
-        train_fn = train
+        train_fn = train_and_eval
 
     if CONFIG.distribution["is_distribution"]:
         print("Using PID: {}".format(os.getpid()))
@@ -197,6 +210,8 @@ def main(unused_argv):
         server = tf.train.Server(cluster,
                                  job_name=job_name,
                                  task_index=task_index)
+        # distributed can not including eval.
+        train_fn = train
         if job_name == 'ps':
             # wait for incoming connection forever
             server.join()

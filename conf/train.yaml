@@ -28,7 +28,8 @@
 #    typically use value pos_sample_num/total_sample_num
 # multivalue: Bool, set 1 or true for features with multiple values.
 # num_examples: Approximate value for total samples number, use this value for shuffle buffer size when training.
-# num_parallel_calls: Parallel degree for parsing input data.
+# num_parallel_calls: Optional, representing the number elements to process in parallel. If not
+#    specified, elements will be processed sequentially.
 train:
   # path related.
   model_dir: ../model
@@ -40,7 +41,7 @@ train:
   image_eval_data:
   image_test_data:
   # train behavior
-  dynamic_train: false
+  dynamic_train: true
   train_epochs: 5
   epochs_per_eval: 1
   batch_size: 64
@@ -51,7 +52,7 @@ train:
   neg_sample_loss_weight: 0.01
   multivalue: 1
   num_examples: 10000
-  num_parallel_calls: 48
+  num_parallel_calls:
 
 
 ## Distribution Parameters

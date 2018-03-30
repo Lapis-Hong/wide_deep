@@ -180,7 +180,7 @@ class _CsvDataset(_CTRDataset):
             num_parallel_calls=self._num_parallel_calls)
         if mode == 'train':
             dataset = dataset.shuffle(buffer_size=self._shuffle_buffer_size, seed=123)
-            dataset = dataset.repeat(self._train_epochs)
+            # dataset = dataset.repeat(self._train_epochs)  # define outside loop
 
         dataset = dataset.prefetch(2 * batch_size)
         if self._multivalue:
@@ -284,7 +284,7 @@ class _ImageDataSet(_CTRDataset):
             # randomness, while smaller sizes have better performance.
             # seed must be same with above CsvDataset
             dataset = dataset.shuffle(buffer_size=self._shuffle_buffer_size, seed=123)
-            dataset = dataset.repeat(self._train_epochs)
+            # dataset = dataset.repeat(self._train_epochs)
         dataset = dataset.batch(batch_size)
         images = dataset.make_one_shot_iterator().get_next()
         return images
