@@ -1,4 +1,6 @@
-# Config for saved_model.py
+### Config for TensorFlow Serving.
+
+## SavedModel config.
 SavedModel:
   model_dir: SavedModel
   model_type: wide_deep
@@ -6,8 +8,7 @@ SavedModel:
   as_text: false
   model_version: 1
 
-
-# TODO
+## TODO
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:

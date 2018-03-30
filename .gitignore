@@ -7,3 +7,6 @@
 *.egg-info
 dist
 build
+
+#
+model

@@ -19,12 +19,13 @@ The code is based on the TensorFlow wide and deep tutorial.
 2. scalable to arbitrarily train data size in production environment.
 3. support multi value feature input (multihot).
 4. support distributed tensorflow  
-5. support custom dnn network (arbitrary connections between layers)
-6. support dnn, multidnn joint learning, even combine with cnn.
-7. support 3 types normalization for continuous features.
-8. support weight column for imbalance sample.
-9. provide tensorflow serving for tf.estimator.
-10. provide scripts to do data proprocess using pyspark (generate continuous features from category features).
+5. support custom dnn network (arbitrary connections between layers) with flexible options.
+6. add BN layer; activation_fn; l1,l2 reg; weight decay lr options for training.
+7. support dnn, multidnn joint learning, even combine with cnn.
+8. support 3 types normalization for continuous features.
+9. support weight column for imbalance sample.
+10. provide tensorflow serving for tf.estimator.
+11. provide scripts to do data proprocess using pyspark (generate continuous features from category features).
 
 
 ## Running the code

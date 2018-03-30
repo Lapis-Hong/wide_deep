@@ -35,8 +35,8 @@ class _CTRDataset(object):
         self._conf = Config()
         self._train_conf = self._conf.train
         self._dist_conf = self._conf.distribution
-        self._cnn_conf = self._conf.model['cnn']
-        self._shuffle_buffer_size = self._train_conf["shuffle_buffer_size"]
+        self._cnn_conf = self._conf.model
+        self._shuffle_buffer_size = self._train_conf["num_examples"]
         self._num_parallel_calls = self._train_conf["num_parallel_calls"]
         self._train_epochs = self._train_conf["train_epochs"]
 
@@ -50,6 +50,7 @@ class _CTRDataset(object):
                 train for train mode, do shuffle, repeat num_epochs
                 eval for eval mode, no shuffle, no repeat
                 pred for pred input_fn, no shuffle, no repeat and no label 
+            batch_size: Int
         Returns:
             (features, label) 
             `features` is a dictionary in which each value is a batch of values for
@@ -65,6 +66,10 @@ class _CsvDataset(_CTRDataset):
         super(_CsvDataset, self).__init__(data_file)
         self._pos_sample_loss_weight = self._train_conf["pos_sample_loss_weight"]
         self._neg_sample_loss_weight = self._train_conf["neg_sample_loss_weight"]
+        self._use_weight = False
+        if self._pos_sample_loss_weight is not None and self._neg_sample_loss_weight is not None:
+            self._use_weight = True
+            print("Using weight column to use weighted loss.")
         self._multivalue = self._train_conf["multivalue"]
         self._is_distribution = self._dist_conf["is_distribution"]
         cluster = self._dist_conf["cluster"]
@@ -123,6 +128,7 @@ class _CsvDataset(_CTRDataset):
         multivalue = self._multivalue
         pos_w = self._pos_sample_loss_weight
         neg_w = self._neg_sample_loss_weight
+        use_weight = self._use_weight
 
         def parser(value):
             """Parse train and eval data with label
@@ -134,41 +140,28 @@ class _CsvDataset(_CTRDataset):
             columns = tf.decode_csv(
                 value, record_defaults=csv_defaults.values(),
                 field_delim=field_delim, use_quote_delim=False, na_value=na_value)
-            # columns = (tf.expand_dims(col, 0) for col in columns)
-            # fix rank 0 error for dataset.padded_patch()
-            if multivalue:
-                features = {}
-                for f, tensor in zip(csv_defaults.keys(), columns):
-                    if f in self._feature_unused:
-                        continue
+            features = dict(zip(csv_defaults.keys(), columns))
+            for f, tensor in features.items():
+                if f in self._feature_unused:
+                    features.pop(f)  # remove unused features
+                    continue
+                if multivalue:  # split tensor
                     if isinstance(csv_defaults[f][0], str):
                         # input must be rank 1, return SparseTensor
                         # print(st.values)  # <tf.Tensor 'StringSplit_11:1' shape=(?,) dtype=string>
                         features[f] = tf.string_split([tensor], multivalue_delim).values  # tensor shape (?,)
                     else:
                         features[f] = tf.expand_dims(tensor, 0)  # change shape from () to (1,)
-            else:
-                features = dict(zip(csv_defaults, columns))
-                for f in self._feature_unused:
-                    features.pop(f)  # remove unused features
-
-            if not is_pred:
-                labels = features.pop('label')
-                if pos_w is None and neg_w is None:
-                    return features, tf.equal(labels, 1)
-                else:  # add weight column according to weight
-                    if pos_w is None:
-                        pos_w = 1
-                    elif neg_w is None:
-                        neg_w = 1
-                    weight = tf.cond(
-                        tf.equal(labels, 1),
-                        lambda: pos_w,
-                        lambda: neg_w)
-                    features["weight_column"] = weight
-                return features, tf.equal(labels, 1)
-            else:
+            if is_pred:
                 return features
+            else:
+                labels = tf.equal(features.pop('label'), 1)
+                if use_weight:
+                    pred = labels[0] if multivalue else labels  # pred must be rank 0 scalar
+                    pos_weight, neg_weight = pos_w or 1, neg_w or 1
+                    weight = tf.cond(pred, lambda: pos_weight, lambda: neg_weight)
+                    features["weight_column"] = [weight]  # padded_batch need rank 1
+                return features, labels
         return parser
 
     def input_fn(self, mode, batch_size):
@@ -192,6 +185,8 @@ class _CsvDataset(_CTRDataset):
         dataset = dataset.prefetch(2 * batch_size)
         if self._multivalue:
             padding_dic = {k: [None] for k in self._feature_used}
+            if self._use_weight:
+                padding_dic['weight_column'] = [None]
             padded_shapes = padding_dic if mode == 'pred' else (padding_dic, [None])
             dataset = dataset.padded_batch(batch_size, padded_shapes=padded_shapes)
         else:
@@ -207,13 +202,13 @@ class _ImageDataSet(_CTRDataset):
     """
     def __init__(self, data_file):
         super(_ImageDataSet, self).__init__(data_file)
-        print(self._cnn_conf['height'])
-        self._height = self._cnn_conf['height']
-        self._width = self._cnn_conf['width']
-        self._num_channels = self._cnn_conf['num_channels']
-        self._weight_decay = self._cnn_conf['weight_decay']
-        self._momentum = self._cnn_conf['momentum']
-        self._use_distortion = self._cnn_conf['use_distortion']
+        print(self._cnn_conf['cnn_height'])
+        self._height = self._cnn_conf['cnn_height']
+        self._width = self._cnn_conf['cnn_width']
+        self._num_channels = self._cnn_conf['cnn_num_channels']
+        self._weight_decay = self._cnn_conf['cnn_weight_decay']
+        self._momentum = self._cnn_conf['cnn_momentum']
+        self._use_distortion = self._cnn_conf['cnn_use_distortion']
 
     def parse_example(self, serialized_example, is_training, preprocess='custom'):
         """Parses a single tf.Example into image tensors.

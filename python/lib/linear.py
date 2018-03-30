@@ -5,24 +5,7 @@
 """This module is based on tf.estimator.LinearClassifier.
 linear logits builder for wide part"""
 # TODO: add FM as linear part
-import math
-
 import tensorflow as tf
-
-_LINEAR_LEARNING_RATE = 0.005
-
-
-def linear_learning_rate(num_linear_feature_columns):
-    """Returns the default learning rate of the linear model.
-    The calculation is a historical artifact of this initial implementation, but
-    has proven a reasonable choice.
-    Args:
-      num_linear_feature_columns: The number of feature columns of the linear model.
-    Returns:
-      A float.
-    """
-    default_learning_rate = 1. / math.sqrt(num_linear_feature_columns)
-    return min(_LINEAR_LEARNING_RATE, default_learning_rate)
 
 
 def linear_logit_fn_builder(units, feature_columns):

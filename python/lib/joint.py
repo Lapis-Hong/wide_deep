@@ -34,10 +34,12 @@ import sys
 PACKAGE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PACKAGE_DIR)
 
-from lib.linear import linear_learning_rate, linear_logit_fn_builder
+from lib.read_conf import Config
+from lib.linear import linear_logit_fn_builder
 from lib.dnn import multidnn_logit_fn_builder
-from lib.utils import model_util as util
+from lib.utils.model_util import add_layer_summary, check_no_sync_replicas_optimizer, activation_fn, get_optimizer_instance
 from lib.cnn.vgg import Vgg16
+
 
 # original import source
 # from tensorflow.python.estimator import estimator
@@ -55,10 +57,25 @@ from lib.cnn.vgg import Vgg16
 # from tensorflow.python.training import sync_replicas_optimizer
 # from tensorflow.python.training import training_util
 
-# The default learning rates are a historical artifact of the initial implementation.
-_DNN_LEARNING_RATE = 0.001  # 0.05
-_LINEAR_LEARNING_RATE = 0.005
-_CNN_LEARNING_RATE = 0.01
+# # The default learning rates are a historical artifact of the initial implementation.
+# _DNN_LEARNING_RATE = 0.001  # 0.05
+# _LINEAR_LEARNING_RATE = 0.005
+# _CNN_LEARNING_RATE = 0.001
+
+# # Weight decay learning rate implementation.
+# decayed_learning_rate = learning_rate * decay_rate ^ (global_step / decay_steps)
+
+CONF = Config().model
+_linear_init_learning_rate = CONF['linear_initial_learning_rate'] or 0.005
+_dnn_init_learning_rate = CONF['dnn_initial_learning_rate'] or 0.001
+_cnn_init_learning_rate = CONF['cnn_initial_learning_rate'] or 0.001
+_linear_decay_rate = CONF['linear_decay_rate'] or 1
+_dnn_decay_rate = CONF['dnn_decay_rate'] or 1
+_cnn_decay_rate = CONF['cnn_decay_rate'] or 1
+
+_batch_size = Config().train['batch_size']
+_num_examples = Config().train['num_examples']
+decay_steps = _num_examples / _batch_size
 
 
 def _wide_deep_combined_model_fn(
@@ -72,9 +89,6 @@ def _wide_deep_combined_model_fn(
         dnn_optimizer='Adagrad',
         dnn_hidden_units=None,
         dnn_connected_mode=None,
-        dnn_activation_fn=tf.nn.relu,
-        dnn_dropout=None,
-        dnn_batch_norm=None,
         input_layer_partitioner=None,
         config=None):
     """Wide and Deep combined model_fn. (Dnn, Cnn, Linear)
@@ -127,15 +141,27 @@ def _wide_deep_combined_model_fn(
     input_layer_partitioner = input_layer_partitioner or (
         tf.min_max_variable_partitioner(max_partitions=num_ps_replicas,
                                         min_slice_size=64 << 20))
+    # weight decay lr
+    global_step = tf.Variable(0)
+    _LINEAR_LEARNING_RATE = tf.train.exponential_decay(
+        _linear_init_learning_rate, global_step=global_step, decay_steps=decay_steps, decay_rate=_linear_decay_rate,
+        staircase=False)
+    _DNN_LEARNING_RATE = tf.train.exponential_decay(
+        _dnn_init_learning_rate, global_step=global_step, decay_steps=decay_steps, decay_rate=_dnn_decay_rate,
+        staircase=False)
+    _CNN_LEARNING_RATE = tf.train.exponential_decay(
+        _cnn_init_learning_rate, global_step=global_step, decay_steps=decay_steps, decay_rate=_cnn_decay_rate,
+        staircase=False)
+
     # Build DNN Logits.
     dnn_parent_scope = 'dnn'
     if model_type == 'wide' or not dnn_feature_columns:
         dnn_logits = None
     else:
-        dnn_optimizer = util.get_optimizer_instance(
+        dnn_optimizer = get_optimizer_instance(
             dnn_optimizer, learning_rate=_DNN_LEARNING_RATE)
         if model_type == 'wide_deep':
-            util._check_no_sync_replicas_optimizer(dnn_optimizer)
+            check_no_sync_replicas_optimizer(dnn_optimizer)
         dnn_partitioner = tf.min_max_variable_partitioner(max_partitions=num_ps_replicas)
         with tf.variable_scope(
                 dnn_parent_scope,
@@ -146,9 +172,6 @@ def _wide_deep_combined_model_fn(
                 hidden_units_list=dnn_hidden_units,
                 connected_mode_list=dnn_connected_mode,
                 feature_columns=dnn_feature_columns,
-                activation_fn=dnn_activation_fn,
-                dropout=dnn_dropout,
-                batch_norm=dnn_batch_norm,
                 input_layer_partitioner=input_layer_partitioner
             )
             dnn_logits = dnn_logit_fn(features=features, mode=mode)
@@ -158,24 +181,25 @@ def _wide_deep_combined_model_fn(
     if model_type == 'deep' or not linear_feature_columns:
         linear_logits = None
     else:
-        linear_optimizer = util.get_optimizer_instance(linear_optimizer,
-            learning_rate=linear_learning_rate(len(linear_feature_columns)))
-        util._check_no_sync_replicas_optimizer(linear_optimizer)
+        linear_optimizer = get_optimizer_instance(linear_optimizer,
+            learning_rate=_LINEAR_LEARNING_RATE)
+        check_no_sync_replicas_optimizer(linear_optimizer)
         with tf.variable_scope(
                 linear_parent_scope,
                 values=tuple(six.itervalues(features)),
                 partitioner=input_layer_partitioner) as scope:
-            logit_fn = linear_logit_fn_builder(units=head.logits_dimension,
+            logit_fn = linear_logit_fn_builder(
+                units=head.logits_dimension,
                 feature_columns=linear_feature_columns)
             linear_logits = logit_fn(features=features)
-            util.add_layer_summary(linear_logits, scope.name)
+            add_layer_summary(linear_logits, scope.name)
 
     # Build CNN Logits.
     cnn_parent_scope = 'cnn'
     if not with_cnn:
         cnn_logits = None
     else:
-        cnn_optimizer = util.get_optimizer_instance(
+        cnn_optimizer = get_optimizer_instance(
             cnn_optimizer, learning_rate=_CNN_LEARNING_RATE)
         with tf.variable_scope(
                 cnn_parent_scope,
@@ -187,7 +211,7 @@ def _wide_deep_combined_model_fn(
                 units=head.logits_dimension,
                 kernel_initializer=tf.glorot_uniform_initializer(),
                 name=scope)
-            util.add_layer_summary(cnn_logits, scope.name)
+            add_layer_summary(cnn_logits, scope.name)
 
     # Combine logits and build full model.
     logits_combine = []
@@ -209,6 +233,7 @@ def _wide_deep_combined_model_fn(
                 train_ops.append(
                     dnn_optimizer.minimize(
                         loss,
+                        global_step=global_step,
                         var_list=tf.get_collection(
                             tf.GraphKeys.TRAINABLE_VARIABLES,
                             scope=dnn_parent_scope)))
@@ -216,6 +241,7 @@ def _wide_deep_combined_model_fn(
                 train_ops.append(
                     linear_optimizer.minimize(
                         loss,
+                        global_step=global_step,
                         var_list=tf.get_collection(
                             tf.GraphKeys.TRAINABLE_VARIABLES,
                             scope=linear_parent_scope)))
@@ -223,6 +249,7 @@ def _wide_deep_combined_model_fn(
                 train_ops.append(
                     cnn_optimizer.minimize(
                         loss,
+                        global_step=global_step,
                         var_list=tf.get_collection(
                             tf.GraphKeys.TRAINABLE_VARIABLES,
                             scope=cnn_parent_scope)))
@@ -307,9 +334,6 @@ class WideAndDeepClassifier(tf.estimator.Estimator):
                  dnn_optimizer='Adagrad',
                  dnn_hidden_units=None,
                  dnn_connected_mode=None,
-                 dnn_activation_fn=tf.nn.relu,
-                 dnn_dropout=None,
-                 dnn_batch_norm=None,
                  n_classes=2,
                  weight_column=None,
                  label_vocabulary=None,
@@ -402,9 +426,6 @@ class WideAndDeepClassifier(tf.estimator.Estimator):
                 dnn_connected_mode=dnn_connected_mode,
                 dnn_optimizer=dnn_optimizer,
                 dnn_hidden_units=dnn_hidden_units,
-                dnn_activation_fn=dnn_activation_fn,
-                dnn_dropout=dnn_dropout,
-                dnn_batch_norm=dnn_batch_norm,
                 input_layer_partitioner=input_layer_partitioner,
                 config=config)
         super(WideAndDeepClassifier, self).__init__(

@@ -1,4 +1,4 @@
-# Feature Configuration
+## Feature Configuration
 
 # Using tf.feature_column in TensorFlow.
 # see https://www.tensorflow.org/api_docs/python/tf/feature_column
@@ -45,9 +45,7 @@
 #     for low sparsity category, set `hash_bucket_size` 3~4*category size to reduce collision
 #     for high sparsity category, set 1.5~2*category size to save memory.
 
-
-# TODO: support all tf.feature_column, add use_wide, use_deep flag, scaler.
-
+# TODO: support all tf.feature_column.
 
 adplan_id:
   type: category
@@ -99,11 +97,6 @@ u:
   transform: hash_bucket
   parameter: 10000000
 
-#ctr_strategy_type:
-#  type: category
-#  transform: hash_bucket
-#  parameter: 100
-
 device_model:
   type: category
   transform: hash_bucket
@@ -138,11 +131,6 @@ ucomp:
   type: category
   transform: hash_bucket
   parameter: 1000
-
-#cost_type:
-#  type: category
-#  transform: vocab
-#  parameter: [0,1]
 
 os:
   type: category
@@ -179,11 +167,6 @@ weekdays:
   type: category
   transform: vocab
   parameter: [1,2,3,4,5,6,7]
-
-#month:
-#  type: category
-#  transform: vocab
-#  parameter: ['01','02','03','04','05','06','07','08','09','10','11','12']
 
 day:
   type: category
@@ -267,7 +250,7 @@ latitude:
 
 age:
   type: continuous
-  transform: standard
+  transform: min_max
   parameter:
     normalization: [10, 90]
     boundaries:  [15,20,25,30,35,40,45,50,55,60,65]

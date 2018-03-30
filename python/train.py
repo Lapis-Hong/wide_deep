@@ -159,12 +159,19 @@ def train_and_eval(model):
 
 def main(unused_argv):
     CONFIG = Config()
-    print("Using TensorFlow version %s" % tf.__version__)
-    assert "1.4" <= tf.__version__, "Need TensorFlow r1.4 or later."
-    print("Using Train config: {}".format(CONFIG.train))
-    print('Model type: {}'.format(FLAGS.model_type))
+    print("Using TensorFlow Version %s" % tf.__version__)
+    assert "1.4" <= tf.__version__, "Need TensorFlow r1.4 or Later."
+    print('\nModel Type: {}'.format(FLAGS.model_type))
     model_dir = os.path.join(FLAGS.model_dir, FLAGS.model_type)
-    print('Model directory: {}'.format(model_dir))
+    print('\nModel Directory: {}'.format(model_dir))
+
+    print("\nUsing Train Config:")
+    for k, v in CONFIG.train.items():
+        print('{}: {}'.format(k, v))
+    print("\nUsing Model Config:")
+    for k, v in CONFIG.model.items():
+        print('{}: {}'.format(k, v))
+
     if not FLAGS.keep_train:
         # Clean up the model directory if not keep training
         shutil.rmtree(model_dir, ignore_errors=True)
@@ -174,8 +181,10 @@ def main(unused_argv):
     tf.logging.info('Build estimator: {}'.format(model))
 
     if CONFIG.train['dynamic_train']:
-        train = dynamic_train
+        train_fn = dynamic_train
         print("Using dynamic train mode.")
+    else:
+        train_fn = train
 
     if CONFIG.distribution["is_distribution"]:
         print("Using PID: {}".format(os.getpid()))
@@ -198,7 +207,7 @@ def main(unused_argv):
             #     print("ps {} received worker {} done".format(task_index, i)
             # print("ps {} quitting".format(task_index))
         else:  # TODO：supervisor & MonotoredTrainingSession & experiment (deprecated)
-            train(model)
+            train_fn(model)
             # train_and_eval(model)
             # Each worker only needs to contact the PS task(s) and the local worker task.
             # config = tf.ConfigProto(device_filters=[
@@ -219,7 +228,7 @@ def main(unused_argv):
             #         classifier.fit(input_fn=train_input_fn, steps=1)
     else:
         # local run
-        train(model)
+        train_fn(model)
 
 
 if __name__ == '__main__':

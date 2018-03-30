@@ -1,64 +1,82 @@
-# Model Parameter Configuration
+### Model Parameter Configuration
 
-# Wide Parameters
-# optimizer: one of {'`Adagrad`, `Adam`, `Ftrl`, `RMSProp`, `SGD`}
-linear:
-  linear_optimizer: 'Ftrl'
-  wide_learning_rate: 0.1
-  # regularization parameters, optional
-  wide_l1: 0.5
-  wide_l2: 1
+## Linear Parameters
 
-
-# DNN Parameters
-# connected_mode: one of {`simple`, `first_dense`, `last_dense`, `dense`, `resnet`}
-#                 or arbitrary connections index tuples.
-#   1. `simple`: normal dnn architecture.
-#   2. `first_dense`: add addition connections from first input layer to all hidden layers.
-#   3. `last_dense`: add addition connections from all previous layers to last layer.
-#   4. `dense`: add addition connections between all layers, similar to DenseNet.
-#   5. `resnet`: add addition connections between adjacent layers, similar to ResNet.
-#   6. arbitrary connections list: add addition connections from layer_0 to layer_1 like 0-1.
-#      eg: [0-1,0-3,1-2]  index start from zero(input_layer), max index is len(hidden_units), smaller index first.
-
-# to use multi dnn model, set nested hidden_units, eg: [[1024,512,256], [512,256]]
-# connected_mode can be set different for each dnn eg: ['simple', 'dense'] or use same mode if only set 'simple'
-# only above 2 network architecture parameters can be different, other parameters are same for multi dnn model.
-dnn:
-  # network architecture
-  hidden_units: [1024,512,256]
-  connected_mode: 'simple'
-
-  dnn_optimizer: 'Adagrad'
-  deep_learning_rate: 0.1
-  activation_function: 'tf.nn.relu'
-  # regularization parameters, optional, set empty to be default None
-  deep_l1: 0.01
-  deep_l2: 0.01
-  dropout:
-  batch_normalization: 1 # bool
+# linear_optimizer:
+#     Required, one of {`Adagrad`, `Adam`, `Ftrl`, `RMSProp`, `SGD`} or
+#     use tf.train.Optimizer instance to pass specific optimizer args.
+# linear_initial_learning_rate:
+#     Optional, initial value of lr, if not specified, defaults to 0.05, can be override by tf.train.Optimizer instance lr args.
+# linear_decay_rate:
+#     Optional, decay rate for each epoch, if not specified, defaults to 1, set empty or 1 to not use weight decay.
+#     decayed_learning_rate = learning_rate * decay_rate ^ (global_step / decay_steps)
+#     After a long time of keep training, set proper small learning rate and turn off weight decay.
+linear_optimizer: Ftrl # tf.train.FtrlOptimizer(learning_rate=0.1,l1_regularization_strength=0.5,l2_regularization_strength=1)
+linear_initial_learning_rate: 0.05
+linear_decay_rate: 0.8
 
 
-# CNN Parameters
-cnn:
-  # A flag to override the data format used in the model. channels_first
-  # provides a performance boost on GPU but is not always compatible
-  # with CPU. If left unspecified, the data format will be chosen
-  # automatically based on whether TensorFlow was built for CPU or GPU.
-  use_flag: 0
-  data_format:
-  height: 224
-  width: 224
-  num_channels: 3
+## DNN Parameters
 
-  cnn_optimizer: 'Adagrad'
-  weight_decay: 2e-4  # use 0.0002, performs better than 0.0001 that was originally suggested.
-  momentum: 0.9
-  num_iamges_train:
-  num_iamges_test:
-  use_distortion: 0
+# dnn_hidden_units: A list indicate each hidden units number.
+#     set nested hidden_units, eg: [[1024,512,256], [512,256]] for multi dnn model.
+# dnn_connected_mode:
+#    One of {`simple`, `first_dense`, `last_dense`, `dense`, `resnet`} or arbitrary connections.
+#      1. `simple`: normal dnn architecture.
+#      2. `first_dense`: add connections from first input layer to all hidden layers.
+#      3. `last_dense`: add connections from all previous layers to last layer.
+#      4. `dense`: add connections between all layers, similar to DenseNet.
+#      5. `resnet`: add connections between adjacent layers, similar to ResNet.
+#      6. arbitrary connections list: add connections from layer_0 to layer_1 like 0-1.
+#        eg: [0-1,0-3,1-2]  index start from zero(input_layer), max index is len(hidden_units), smaller index first.
+#    Set different for each dnn eg: ['simple', 'dense'] or use same mode if only set 'simple'
 
-  # if use resnet
-  resnet_size: 50 # choices: 18, 34, 50, 101, 152, 200
+# dnn_optimizer:
+# dnn_initial_learning_rate: if not specified, defaults to 0.05.
+# dnn_decay_rate:
+#     above 3 paramters see linear, use same for multidnn.
+# dnn_activation_function:
+#     One of {`sigmoid`,`tanh`,`relu`,`relu6`,`leaky_relu`,`crelu`,`elu`,`selu`,`softplus`,`softsign`}
+# dnn_l1: L1 regularization for dense layers, set 0 or empty to not use.
+# dnn_l2: L2 regularization for dense layers, set 0 or empty to not use.
+# dnn_dropout: dropout rate, 0.1 would drop out 10% of input units, set 0 or empty to not use.
+# dnn_batch_normalization: Bool, set 1 or True to enable do batch normalization.
+
+dnn_hidden_units: [1024,512,256]
+dnn_connected_mode: simple
+dnn_optimizer: Adagrad
+dnn_initial_learning_rate: 0.05
+dnn_decay_rate: 0.8
+dnn_activation_function: relu
+dnn_l1: 0.1
+dnn_l2: 0.1
+dnn_dropout:
+dnn_batch_normalization: 1
+
+
+## CNN Parameters
+# TODO
+
+# cnn_use_flag: Bool, set 0 to not combine CNN model.
+# cnn_data_format: `channels_first` or `channeals_last`.
+#     channels_first provides a performance boost on GPU but is not always compatible with CPU.
+#     If unspecified, chosen automatically based on whether TensorFlow was built for CPU or GPU.
+# ...
+
+cnn_use_flag: 0
+#cnn_data_format:
+#cnn_height: 224
+#cnn_width: 224
+#cnn_num_channels: 3
+cnn_optimizer: 'Adagrad'
+cnn_initial_learning_rate: 0.05
+cnn_decay_rate: 0.8
+#cnn_weight_decay: 2e-4  # use 0.0002, performs better than 0.0001 that was originally suggested.
+#cnn_momentum: 0.9
+#cnn_num_iamges_train:
+#cnn_num_iamges_test:
+#cnn_use_distortion: 0
+## if use resnet
+#cnn_resnet_size: 50 # choices: 18, 34, 50, 101, 152, 200
 
 

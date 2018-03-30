@@ -153,11 +153,12 @@ class Config(object):
                 conf_list.append((features, hash_bucket_size, is_deep))
             return conf_list
 
-    def _read_model_conf(self):
+    def _read_model_conf(self):  # TODO:
         with open(self._model_conf_file) as f:
-            return yaml.load(f)
+            model = yaml.load(f)
+            return model
 
-    def _read_train_conf(self):
+    def _read_train_conf(self):  # TODO
         with open(self._train_conf_file) as f:
             return yaml.load(f)
 
