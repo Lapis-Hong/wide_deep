@@ -48,8 +48,8 @@ train:
   keep_train: 0
   checkpoint_path:
   # dataset related
-  pos_sample_loss_weight: 0.99
-  neg_sample_loss_weight: 0.01
+  pos_sample_loss_weight: # 0.99
+  neg_sample_loss_weight: # 0.01
   multivalue: 1
   num_examples: 10000
   num_parallel_calls:
