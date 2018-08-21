@@ -61,7 +61,7 @@ def _build_model_columns():
     def normalizer_fn_builder(scaler, normalization_params):
         """normalizer_fn builder"""
         if scaler == 'min_max':
-            return lambda x: (x-normalization_params[0]) / (x-normalization_params[1])
+            return lambda x: (x-normalization_params[0]) / (normalization_params[1]-normalization_params[0])
         elif scaler == 'standard':
             return lambda x: (x-normalization_params[0]) / normalization_params[1]
         else:
