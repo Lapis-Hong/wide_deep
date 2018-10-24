@@ -42,7 +42,7 @@ vim train.yaml
 You can run the code locally as follows:
 
 ```
-cd lib
+cd python
 python train.py
 ```
 or use shell scripts as follows:
