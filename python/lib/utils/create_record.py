@@ -39,7 +39,7 @@ def input_fn():
     # Creates a dataset that reads all of the examples from two files, and extracts
     # the image and label features.
     dataset = tf.data.TFRecordDataset(outpath)
-    dataset = dataset.map(_parse_function)
+    dataset = dataset.map(_parse_function,num_parallel_calls=tf.data.experimental.AUTOTUNE)
     img = dataset.make_one_shot_iterator().get_next()
     return img
 
